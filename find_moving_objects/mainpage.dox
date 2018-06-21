@@ -1,0 +1,15 @@
+/**
+\mainpage
+
+\section FindMovingObjectsAPI Find Moving Objects Code API
+- \link find_moving_objects::Bank Bank (C++) \endlink
+- \link find_moving_objects::BankArgument BankArgument (C++) \endlink
+
+\section OptionAPI Command Line Options Code API
+- \link find_moving_objects::Option Option (C++) \endlink
+
+\section ConfidenceEnhancerNode A Confidence Enhancing ROS Node
+- \link moving_objects_confidence_enhancer_node.cpp moving_objects_confidence_enhancer_node.cpp \endlink 
+defines a node that tries to increase the confidence of objects which are seen by several sensors.
+
+*/
