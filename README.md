@@ -9,3 +9,5 @@ consists of variables that control the behavior of the Bank object. Please refer
 src/find_moving_objects/bank.h or a doxygen-generated documentation for each variable. The default
 values for the variables work well for an office setting and a robot moving at about 0.5 m/s, 
 equipped with a LIDAR which produces scans at a frequency of about 25 Hz.
+
+This library is developed for, and tested on, ROS Kinetic.
