@@ -556,7 +556,6 @@ void Bank::initBank(BankArgument bank_argument)
  * Recursive tracking of an object through history to get the indices of its middle, 
  * left and right points in the oldest scans, along with the sum of all ranges etc.
  */
-// *TODO: Wrap around in case of 360 degrees sensor!
 void Bank::getOldIndices(const float range_min,
                          const float range_max,
                          const unsigned int object_width_in_points,
@@ -599,7 +598,6 @@ void Bank::getOldIndices(const float range_min,
   }
   
   // Search lower index side, with possible wrap around
-  // *TODO
   bool stopped = false;
   for (int i=index_mean-1; 0<=i; --i)
   {
@@ -647,7 +645,6 @@ void Bank::getOldIndices(const float range_min,
   *range_at_min_index_old = prev_range;
   
   // Search higher index side
-  // *TODO
   stopped = false;
   int right = index_mean;
   prev_range = bank_ranges_ema[current_level][index_mean];
@@ -698,7 +695,6 @@ void Bank::getOldIndices(const float range_min,
   
   // Did we find a valid object?
   unsigned int misses = consecutive_failures_to_find_object;
-//   const unsigned int width_in_points = right - left + 1; // *TODO keep track of this in loops instead
   if (width_in_points < bank_argument.object_threshold_min_nr_points  ||
       bank_argument.object_threshold_max_delta_width_in_points < abs(width_in_points - object_width_in_points)  ||
       bank_argument.object_threshold_bank_tracking_max_delta_distance  < 
@@ -727,10 +723,8 @@ void Bank::getOldIndices(const float range_min,
   
   // If reaching this point, a valid object was found
   // Update end points
-  // *TODO
   *index_min_old = left;
   *index_mean_old = (left + (width_in_points-1) / 2) % bank_argument.points_per_scan;
-                    // (right + left) / 2; // *TODO
   *index_max_old = right;
   *range_sum_old = range_sum;
   
@@ -740,7 +734,7 @@ void Bank::getOldIndices(const float range_min,
                 width_in_points,
                 (current_level - 1) < 0 ? bank_argument.nr_scans_in_bank - 1 : current_level - 1, // wrap around
                 levels_searched + 1,
-                *index_mean_old, // (right + left) / 2, // *TODO
+                *index_mean_old,
                 misses,
                 threshold_consecutive_failures_to_find_object,
                 index_min_old,
@@ -752,133 +746,133 @@ void Bank::getOldIndices(const float range_min,
 }
 
 
-/*
- * Compares consecutive found objects to see if they are to be considered the same object. If so, then a merge of them
- * is performed
- */
-void Bank::mergeFoundObjects(MovingObjectArray * moa)
-{
-//   unsigned int nr_objects_found = moa->objects.size();
-  
-  if (1 < moa->objects.size())
-  {
-  
-    MovingObject * object_1 = &moa->objects[0];
-    MovingObject * object_2;
-    std::vector<MovingObject> moa_merged;
-    
-    // Loop through objects
-    for (unsigned int i=1; i<moa->objects.size(); ++i)
-    {
-      object_2 = &moa->objects[i];
-    
-      // Angle betweeen velocity vectors
-//       float velocity_direction_delta = acosf((object_1->velocity.x * object_2->velocity.x +
-//                                               object_1->velocity.y * object_2->velocity.y +
-//                                               object_1->velocity.z * object_2->velocity.z) / 
+// /*
+//  * Compares consecutive found objects to see if they are to be considered the same object. If so, then a merge of them
+//  * is performed
+//  */
+// void Bank::mergeFoundObjects(MovingObjectArray * moa)
+// {
+// //   unsigned int nr_objects_found = moa->objects.size();
+//   
+//   if (1 < moa->objects.size())
+//   {
+//   
+//     MovingObject * object_1 = &moa->objects[0];
+//     MovingObject * object_2;
+//     std::vector<MovingObject> moa_merged;
+//     
+//     // Loop through objects
+//     for (unsigned int i=1; i<moa->objects.size(); ++i)
+//     {
+//       object_2 = &moa->objects[i];
+//     
+//       // Angle betweeen velocity vectors
+// //       float velocity_direction_delta = acosf((object_1->velocity.x * object_2->velocity.x +
+// //                                               object_1->velocity.y * object_2->velocity.y +
+// //                                               object_1->velocity.z * object_2->velocity.z) / 
+// //                                              (object_1->speed * object_2->speed));
+//       
+//       float velocity_direction_delta = acosf((object_1->velocity ^ object_2->velocity) / 
 //                                              (object_1->speed * object_2->speed));
-      
-      float velocity_direction_delta = acosf((object_1->velocity ^ object_2->velocity) / 
-                                             (object_1->speed * object_2->speed));
-      
-      float gap_angle = object_2->angle_begin - object_1->angle_end;
-      
-//       std::cout << "Comparing objects " << i-1 << " and " << i << std::endl <<
-//                    "  gap_angle = " << gap_angle * 180 / M_PI << std::endl <<
-//                    "  delta_distance_at_angle_gap_ends = " << fabsf(object_2->distance_at_angle_begin - object_1->distance_at_angle_end) << std::endl <<
-//                    "  delta_speed = " << fabsf(object_1->speed * object_2->speed) << std::endl <<
-//                    "  velocity_direction_delta = " << std::left << std::setw(11) << velocity_direction_delta *180 / M_PI<< 
-//                    "    " << std::left << std::setw(9) << object_1->velocity.x << "  " << std::left << std::setw(9) << object_2->velocity.x << std::endl <<
-//                    "                                            " << std::left << std::setw(9) << object_1->velocity.y << "  " << std::left << std::setw(9) << object_2->velocity.y << std::endl <<
-//                    "                                            " << std::left << std::setw(9) << object_1->velocity.z << "  " << std::left << std::setw(9) << object_2->velocity.z << std::endl;
-      
-      // Compare objects - end of object 1 <-> start of object 2, velocities
-      if (gap_angle <= bank_argument.merge_threshold_max_angle_gap &&
-          fabsf(object_2->distance_at_angle_begin - object_1->distance_at_angle_end) <=
-                                                    bank_argument.merge_threshold_max_end_points_distance_delta &&
-          velocity_direction_delta <= bank_argument.merge_threshold_max_velocity_direction_delta &&
-          fabsf(object_1->speed - object_2->speed) <= bank_argument.merge_threshold_max_speed_delta)
-      {
-        std::cout << "MERGING OBJECTS:" << std::endl; // << 
-//                      *object_1 << std::endl << 
-//                      "---------------------------" << std::endl <<
-//                      *object_2 << std::endl << 
-//                      "---------------------------" << std::endl <<
-//                      "---------------------------" << std::endl;
-        // "Join" objects and add the new object to moa_merged
-        MovingObject mo = *object_1;
-        
-        // Update properties
-        mo.seen_width = sqrt( object_1->distance_at_angle_begin *
-                              object_1->distance_at_angle_begin +
-                              object_2->distance_at_angle_end *
-                              object_2->distance_at_angle_end -
-                              2 * object_1->distance_at_angle_begin *
-                                  object_2->distance_at_angle_end *
-                                  cosf (object_2->angle_end - object_1->angle_begin)
-                            );
-        mo.angle_end = object_2->angle_end;
-        mo.distance_at_angle_end = object_2->distance_at_angle_end;
-        mo.distance = (object_1->distance * 
-                       (object_1->angle_end - object_1->angle_begin) / bank_argument.angle_increment +
-                       object_2->distance *
-                       (object_2->angle_end - object_2->angle_begin) / bank_argument.angle_increment) * // Range sum
-                      bank_argument.angle_increment / (object_2->angle_end - object_1->angle_begin);
-        
-                      // The length of the line between objects 1 and 2
-        float gap_width = sqrt( object_1->distance_at_angle_end *
-                                object_1->distance_at_angle_end +
-                                object_2->distance_at_angle_begin *
-                                object_2->distance_at_angle_begin -
-                                2 * object_1->distance_at_angle_end *
-                                    object_2->distance_at_angle_begin *
-                                    cosf (gap_angle)
-                              );
-        // The center point of the new object lies this far from object_2 on that line 
-        float shift_factor = (object_1->seen_width + gap_width) / 
-                             (object_1->seen_width + object_2->seen_width + 2 * gap_width);
-        
-        mo.position_in_map_frame = shift_factor * object_1->position_in_map_frame + (1 - shift_factor) * object_2->position_in_map_frame;
-        mo.position_in_fixed_frame = shift_factor * object_1->position_in_fixed_frame + (1 - shift_factor) * object_2->position_in_fixed_frame;
-        mo.position_in_base_frame = shift_factor * object_1->position_in_base_frame + (1 - shift_factor) * object_2->position_in_base_frame;
-        mo.position = shift_factor * object_1->position + (1 - shift_factor) * object_2->position;
-        mo.velocity_in_map_frame = 0.5 * (object_1->velocity_in_map_frame + object_2->velocity_in_map_frame);
-        mo.velocity_in_fixed_frame = 0.5 * (object_1->velocity_in_fixed_frame + object_2->velocity_in_fixed_frame);
-        mo.velocity_in_base_frame = 0.5 * (object_1->velocity_in_base_frame + object_2->velocity_in_base_frame);
-        mo.velocity = 0.5 * (object_1->velocity + object_2->velocity);
-        mo.speed_in_map_frame = sqrt (mo.velocity_in_map_frame ^ mo.velocity_in_map_frame);
-        mo.speed_in_fixed_frame = sqrt (mo.velocity_in_fixed_frame ^ mo.velocity_in_fixed_frame);
-        mo.speed_in_base_frame = sqrt (mo.velocity_in_base_frame ^ mo.velocity_in_base_frame);
-        mo.speed = sqrt (mo.velocity ^ mo.velocity);
-        mo.velocity_normalized_in_map_frame = mo.velocity_in_map_frame / mo.speed_in_map_frame;
-        mo.velocity_normalized_in_fixed_frame = mo.velocity_in_fixed_frame / mo.speed_in_fixed_frame;
-        mo.velocity_normalized_in_base_frame = mo.velocity_in_base_frame / mo.speed_in_base_frame;
-        mo.velocity_normalized = mo.velocity / mo.speed;
-        bool object_1_is_closest = object_1->closest_distance < object_2->closest_distance;
-        mo.closest_point_in_map_frame = object_1_is_closest ? object_1->closest_point_in_map_frame : object_2->closest_point_in_map_frame;
-        mo.closest_point_in_fixed_frame = object_1_is_closest ? object_1->closest_point_in_fixed_frame : object_2->closest_point_in_fixed_frame;
-        mo.closest_point_in_base_frame = object_1_is_closest ? object_1->closest_point_in_base_frame : object_2->closest_point_in_base_frame;
-        mo.closest_point = object_1_is_closest ? object_1->closest_point : object_2->closest_point;
-        mo.closest_distance = object_1_is_closest ? object_1->closest_distance : object_2->closest_distance;
-        mo.angle_for_closest_distance = object_1_is_closest ? object_1->angle_for_closest_distance : object_2->angle_for_closest_distance;
-        mo.confidence = object_1->confidence < object_2->confidence ? object_2->confidence : object_1->confidence;
-        
-        // Manipulate moa, object_1 and i
-        moa->objects.at(i-1) = mo;
-        moa->objects.erase(moa->objects.begin()+i);
-        object_1 = &moa->objects[i-1];
-        i--; // Also updated in loop, we want to redo current i
-      }
-      else
-      {
-        // Go to next two objects
-        object_1 = object_2;
-      }
-    }
-    
-    // TODO: Wrap around if 360 degree sensor
-  }
-}
+//       
+//       float gap_angle = object_2->angle_begin - object_1->angle_end;
+//       
+// //       std::cout << "Comparing objects " << i-1 << " and " << i << std::endl <<
+// //                    "  gap_angle = " << gap_angle * 180 / M_PI << std::endl <<
+// //                    "  delta_distance_at_angle_gap_ends = " << fabsf(object_2->distance_at_angle_begin - object_1->distance_at_angle_end) << std::endl <<
+// //                    "  delta_speed = " << fabsf(object_1->speed * object_2->speed) << std::endl <<
+// //                    "  velocity_direction_delta = " << std::left << std::setw(11) << velocity_direction_delta *180 / M_PI<< 
+// //                    "    " << std::left << std::setw(9) << object_1->velocity.x << "  " << std::left << std::setw(9) << object_2->velocity.x << std::endl <<
+// //                    "                                            " << std::left << std::setw(9) << object_1->velocity.y << "  " << std::left << std::setw(9) << object_2->velocity.y << std::endl <<
+// //                    "                                            " << std::left << std::setw(9) << object_1->velocity.z << "  " << std::left << std::setw(9) << object_2->velocity.z << std::endl;
+//       
+//       // Compare objects - end of object 1 <-> start of object 2, velocities
+//       if (gap_angle <= bank_argument.merge_threshold_max_angle_gap &&
+//           fabsf(object_2->distance_at_angle_begin - object_1->distance_at_angle_end) <=
+//                                                     bank_argument.merge_threshold_max_end_points_distance_delta &&
+//           velocity_direction_delta <= bank_argument.merge_threshold_max_velocity_direction_delta &&
+//           fabsf(object_1->speed - object_2->speed) <= bank_argument.merge_threshold_max_speed_delta)
+//       {
+//         std::cout << "MERGING OBJECTS:" << std::endl; // << 
+// //                      *object_1 << std::endl << 
+// //                      "---------------------------" << std::endl <<
+// //                      *object_2 << std::endl << 
+// //                      "---------------------------" << std::endl <<
+// //                      "---------------------------" << std::endl;
+//         // "Join" objects and add the new object to moa_merged
+//         MovingObject mo = *object_1;
+//         
+//         // Update properties
+//         mo.seen_width = sqrt( object_1->distance_at_angle_begin *
+//                               object_1->distance_at_angle_begin +
+//                               object_2->distance_at_angle_end *
+//                               object_2->distance_at_angle_end -
+//                               2 * object_1->distance_at_angle_begin *
+//                                   object_2->distance_at_angle_end *
+//                                   cosf (object_2->angle_end - object_1->angle_begin)
+//                             );
+//         mo.angle_end = object_2->angle_end;
+//         mo.distance_at_angle_end = object_2->distance_at_angle_end;
+//         mo.distance = (object_1->distance * 
+//                        (object_1->angle_end - object_1->angle_begin) / bank_argument.angle_increment +
+//                        object_2->distance *
+//                        (object_2->angle_end - object_2->angle_begin) / bank_argument.angle_increment) * // Range sum
+//                       bank_argument.angle_increment / (object_2->angle_end - object_1->angle_begin);
+//         
+//                       // The length of the line between objects 1 and 2
+//         float gap_width = sqrt( object_1->distance_at_angle_end *
+//                                 object_1->distance_at_angle_end +
+//                                 object_2->distance_at_angle_begin *
+//                                 object_2->distance_at_angle_begin -
+//                                 2 * object_1->distance_at_angle_end *
+//                                     object_2->distance_at_angle_begin *
+//                                     cosf (gap_angle)
+//                               );
+//         // The center point of the new object lies this far from object_2 on that line 
+//         float shift_factor = (object_1->seen_width + gap_width) / 
+//                              (object_1->seen_width + object_2->seen_width + 2 * gap_width);
+//         
+//         mo.position_in_map_frame = shift_factor * object_1->position_in_map_frame + (1 - shift_factor) * object_2->position_in_map_frame;
+//         mo.position_in_fixed_frame = shift_factor * object_1->position_in_fixed_frame + (1 - shift_factor) * object_2->position_in_fixed_frame;
+//         mo.position_in_base_frame = shift_factor * object_1->position_in_base_frame + (1 - shift_factor) * object_2->position_in_base_frame;
+//         mo.position = shift_factor * object_1->position + (1 - shift_factor) * object_2->position;
+//         mo.velocity_in_map_frame = 0.5 * (object_1->velocity_in_map_frame + object_2->velocity_in_map_frame);
+//         mo.velocity_in_fixed_frame = 0.5 * (object_1->velocity_in_fixed_frame + object_2->velocity_in_fixed_frame);
+//         mo.velocity_in_base_frame = 0.5 * (object_1->velocity_in_base_frame + object_2->velocity_in_base_frame);
+//         mo.velocity = 0.5 * (object_1->velocity + object_2->velocity);
+//         mo.speed_in_map_frame = sqrt (mo.velocity_in_map_frame ^ mo.velocity_in_map_frame);
+//         mo.speed_in_fixed_frame = sqrt (mo.velocity_in_fixed_frame ^ mo.velocity_in_fixed_frame);
+//         mo.speed_in_base_frame = sqrt (mo.velocity_in_base_frame ^ mo.velocity_in_base_frame);
+//         mo.speed = sqrt (mo.velocity ^ mo.velocity);
+//         mo.velocity_normalized_in_map_frame = mo.velocity_in_map_frame / mo.speed_in_map_frame;
+//         mo.velocity_normalized_in_fixed_frame = mo.velocity_in_fixed_frame / mo.speed_in_fixed_frame;
+//         mo.velocity_normalized_in_base_frame = mo.velocity_in_base_frame / mo.speed_in_base_frame;
+//         mo.velocity_normalized = mo.velocity / mo.speed;
+//         bool object_1_is_closest = object_1->closest_distance < object_2->closest_distance;
+//         mo.closest_point_in_map_frame = object_1_is_closest ? object_1->closest_point_in_map_frame : object_2->closest_point_in_map_frame;
+//         mo.closest_point_in_fixed_frame = object_1_is_closest ? object_1->closest_point_in_fixed_frame : object_2->closest_point_in_fixed_frame;
+//         mo.closest_point_in_base_frame = object_1_is_closest ? object_1->closest_point_in_base_frame : object_2->closest_point_in_base_frame;
+//         mo.closest_point = object_1_is_closest ? object_1->closest_point : object_2->closest_point;
+//         mo.closest_distance = object_1_is_closest ? object_1->closest_distance : object_2->closest_distance;
+//         mo.angle_for_closest_distance = object_1_is_closest ? object_1->angle_for_closest_distance : object_2->angle_for_closest_distance;
+//         mo.confidence = object_1->confidence < object_2->confidence ? object_2->confidence : object_1->confidence;
+//         
+//         // Manipulate moa, object_1 and i
+//         moa->objects.at(i-1) = mo;
+//         moa->objects.erase(moa->objects.begin()+i);
+//         object_1 = &moa->objects[i-1];
+//         i--; // Also updated in loop, we want to redo current i
+//       }
+//       else
+//       {
+//         // Go to next two objects
+//         object_1 = object_2;
+//       }
+//     }
+//     
+//     // TODO: Wrap around if 360 degree sensor
+//   }
+// }
 
 /*
  * Find and report moving objects based on the current content of the bank
@@ -906,10 +900,8 @@ void Bank::findAndReportMovingObjects()
   const float range_min = bank_argument.range_min;
   unsigned int i=0;
   
-  // TODO: Handle 360 degrees sensors! 
-  // *TODO: Adapt upper limit of loop? 
+  // Handle 360 degrees sensors!
   unsigned int upper_limit_out_of_bounds_scan_point = bank_argument.points_per_scan;
-//   while(i<bank_argument.points_per_scan)
   while(i<upper_limit_out_of_bounds_scan_point)
   {
     /* Find first valid scan from where we currently are */
@@ -976,7 +968,7 @@ void Bank::findAndReportMovingObjects()
     range_at_angle_end = prev_range;
     index_at_angle_end = j-1; // j is not part of the object
     
-    // *TODO: if i is 0 and sensor is 360 deg, then we must also search higher end of scan points and account for these
+    // If i is 0 and sensor is 360 deg, then we must also search higher end of scan points and account for these
     if (i == 0 && bank_argument.sensor_is_360_degrees)
     {
       // Start from i again
@@ -997,7 +989,7 @@ void Bank::findAndReportMovingObjects()
           nr_object_points++;
           object_range_sum += range_k;
           
-          // *TODO: Adapt the loop upper limit
+          // Adapt the loop upper limit
           upper_limit_out_of_bounds_scan_point--;
           
           // Update min and max ranges
@@ -1027,12 +1019,12 @@ void Bank::findAndReportMovingObjects()
     
     /* Evaluate the found object (it consists of at least the ith scan) */
     const float distance = object_range_sum / nr_object_points; // Average distance
-    const float object_seen_width = sqrt( range_at_angle_begin * // bank_ranges_ema[bank_index_newest][i] * // *TODO
-                                          range_at_angle_begin + // bank_ranges_ema[bank_index_newest][i] +// *TODO
-                                          range_at_angle_end * // bank_ranges_ema[bank_index_newest][i+nr_object_points-1] * // *TODO
-                                          range_at_angle_end - // bank_ranges_ema[bank_index_newest][i+nr_object_points-1] - // *TODO
-                                          2 * range_at_angle_begin * // bank_ranges_ema[bank_index_newest][i] * // *TODO
-                                              range_at_angle_end * // bank_ranges_ema[bank_index_newest][i+nr_object_points-1] * // *TODO
+    const float object_seen_width = sqrt( range_at_angle_begin * 
+                                          range_at_angle_begin + 
+                                          range_at_angle_end * 
+                                          range_at_angle_end - 
+                                          2 * range_at_angle_begin * 
+                                              range_at_angle_end * 
                                               cosf (bank_argument.angle_increment * nr_object_points)
                                           ); // This is the seen object width using the law of cosine
     
@@ -1044,11 +1036,10 @@ void Bank::findAndReportMovingObjects()
       
       // Recursively derive the min, mean and max indices and the sum of all ranges of the object (if found) 
       // in the oldest scans in the bank
-      const unsigned int index_min = index_at_angle_begin; // i; // *TODO
-      const unsigned int index_max = index_at_angle_end; // j; // i + nr_object_points - 1; // *TODO
+      const unsigned int index_min = index_at_angle_begin;
+      const unsigned int index_max = index_at_angle_end;
       const unsigned int index_mean = (index_min + (nr_object_points-1) / 2) % bank_argument.points_per_scan;
                                       // Accounts for 360 deg sensor => i==0 could mean that index_max < index_min
-                                      //(index_min + index_max) / 2 : // *TODO
       int index_min_old = -1;
       int index_mean_old = -1;
       int index_max_old = -1;
@@ -1088,9 +1079,9 @@ void Bank::findAndReportMovingObjects()
         mo.seen_width = object_seen_width;
         mo.angle_begin = index_min * bank_argument.angle_increment + bank_argument.angle_min;
         mo.angle_end   = index_max * bank_argument.angle_increment + bank_argument.angle_min;
-        const float angle_mean = index_mean * bank_argument.angle_increment + bank_argument.angle_min; // (mo.angle_begin + mo.angle_end) / 2.0f; // *TODO
-        mo.distance_at_angle_begin = range_at_angle_begin; // range_i;    // *TODO
-        mo.distance_at_angle_end   = range_at_angle_end;   // prev_range; // *TODO
+        const float angle_mean = index_mean * bank_argument.angle_increment + bank_argument.angle_min;
+        mo.distance_at_angle_begin = range_at_angle_begin;
+        mo.distance_at_angle_end   = range_at_angle_end;
         // Position is dependent on the distance and angle_mean
         // Reference coordinate system (relation to the Lidar):
         //   x: forward
@@ -1135,25 +1126,22 @@ void Bank::findAndReportMovingObjects()
           mo.closest_point.z = 0.0;
         }
         
-        
-        // TODO
         // Distance from sensor to object at old time
         const unsigned int nr_object_points_old = (index_min_old <= index_max_old) ? 
                                                   (index_max_old - index_min_old + 1) :
-                                                  bank_argument.points_per_scan - (index_min_old - index_max_old) + 1; // *TODO
-        const float distance_old = range_sum_old / nr_object_points_old; // *TODO
+                                                  bank_argument.points_per_scan - (index_min_old - index_max_old) + 1;
+        const float distance_old = range_sum_old / nr_object_points_old;
         // distance is found at index_mean_old, this is the angle at which distance is found
         const float distance_angle_old = index_mean_old * bank_argument.angle_increment + bank_argument.angle_min;
         // Covered angle
         const float covered_angle_old = nr_object_points_old * bank_argument.angle_increment;
-                                        //(index_max_old - index_min_old + 1) * bank_argument.angle_increment; // *TODO
         // Width of old object
-        const float object_seen_width_old = sqrt( range_at_min_index_old * // bank_ranges_ema[bank_index_put][index_min_old] * // *TODO
-                                                  range_at_min_index_old + // bank_ranges_ema[bank_index_put][index_min_old] + // *TODO
-                                                  range_at_max_index_old * // bank_ranges_ema[bank_index_put][index_max_old] * // *TODO
-                                                  range_at_max_index_old - // bank_ranges_ema[bank_index_put][index_max_old] - // *TODO
-                                                  2 * range_at_min_index_old * // bank_ranges_ema[bank_index_put][index_min_old] * // *TODO
-                                                      range_at_max_index_old * // bank_ranges_ema[bank_index_put][index_max_old] * // *TODO
+        const float object_seen_width_old = sqrt( range_at_min_index_old * 
+                                                  range_at_min_index_old + 
+                                                  range_at_max_index_old * 
+                                                  range_at_max_index_old - 
+                                                  2 * range_at_min_index_old * 
+                                                      range_at_max_index_old * 
                                                       cosf (covered_angle_old)
                                                 ); // This is the seen object width using the law of cosine
         // Coordinates at old time
@@ -1616,9 +1604,10 @@ void Bank::findAndReportMovingObjects()
             // Adapt EMA message intensities
             if (bank_argument.publish_ema)
             {
-              // *TODO
+              // Are we avoiding wrapping around the bank edges?
               if (index_min <= index_max)
               {
+                // YES
                 for (unsigned int k=index_min; k<=index_max; ++k)
                 {
                   msg_ema.intensities[k] = 300.0f;
@@ -1626,6 +1615,7 @@ void Bank::findAndReportMovingObjects()
               }
               else
               {
+                // NO - we are wrapping around
                 // index_max < index_min
                 for (unsigned int k=index_min; k<bank_argument.points_per_scan; ++k)
                 {
@@ -1646,15 +1636,7 @@ void Bank::findAndReportMovingObjects()
       }
     }
     
-    // *TODO: Update i etc
-//     if (i == 0 && index_at_angle_end < index_at_angle_begin)
-//     {
     i = index_at_angle_end + 1;
-//     }
-//     else
-//     {
-//       i += nr_object_points;
-//     }
     nr_object_points = 0;
   }
   

@@ -398,7 +398,7 @@ private:
   virtual long addFirstMessage(sensor_msgs::PointCloud2::ConstPtr);
   inline void initIndex();
   inline void advanceIndex();
-  void mergeFoundObjects(MovingObjectArray * moa);
+//   void mergeFoundObjects(MovingObjectArray * moa);
   
   /* 
    * Recursive tracking of an object through history to get the indices of its middle, 
