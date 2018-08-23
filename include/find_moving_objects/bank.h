@@ -44,6 +44,7 @@
 #include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <find_moving_objects/MovingObject.h>
+#include <find_moving_objects/MovingObjectArray.h>
 
 
 namespace find_moving_objects
@@ -72,7 +73,7 @@ public:
   /**< The number of points per scan message. 
    *   For <code>sensor_msgs::LaserScan</code>, <code>ranges.size()</code> is used and cannot be changed; for 
    *   <code>sensor_msgs::PointCloud2</code>, a custom number, defining the resolution of the bank, should be specified.
-       Initialized to 360. */
+   *   Initialized to 360. */
   
   float angle_min; 
   /**< The smallest angle (in radians) defined by the scan points in the bank. 
@@ -91,6 +92,15 @@ public:
    *  then the end points in the bank will be the smallest range of all points lying outside the view; 
    *  if larger, then there will be "empty" ranges in the beginning and end of the bank).
    * Initialized to PI. */
+  
+  bool sensor_frame_has_z_axis_forward;
+  /**< Set this to <code>true</code> in case the delivered data is given in a camera/optical frame with the Z-axis 
+   * pointing forward, instead of the X-axis (and the X-axis pointing right and the Y-axis pointing down).
+   * Note that setting this option to <code>true</code> causes the <code>ema</code> and 
+   * <code>objects_closest_point_markers</code> to be shown incorrectly since they are in fact 
+   * <code>sensor_msgs::LaserScan</code> messages.
+   * The <code>velocity_arrows</code> and <code>delta_position_lines</code> are still shown correctly, though.
+   * Initialized to <code>false</code>. */ 
   
   double object_threshold_edge_max_delta_range; 
   /**< The maximum difference in range (meters) between two consecutive scan points belonging to the same object. 
@@ -232,6 +242,13 @@ public:
    * Initialized to <code>"base_link"</code>. */
   
   
+  // TODO: dox
+  float merge_threshold_max_angle_gap;
+  float merge_threshold_max_end_points_distance_delta;
+  float merge_threshold_max_velocity_direction_delta;
+  float merge_threshold_max_speed_delta;
+  
+  
   /*
    * PointCloud2 message-specific (none of these apply to LaserScan) 
    */
@@ -253,16 +270,21 @@ public:
   
   double PC2_threshold_z_min; 
   /**< Do not account points with a Z-coordinate smaller than this. 
+   * If <code>sensor_frame_has_z_axis_forward</code> is set, then the negated Y-coordinate is considered instead of the
+   * Z-coordinate of the point, since the Y-axis is pointing down in that case.
    * Initialized to 0.1. */
   
   double PC2_threshold_z_max; 
-  /**< Do not account points with a Z-coordinate larger than this. 
+  /**< Do not account points with a Z-coordinate larger than this. It is assumed that the Z-axis in the sensor frame is 
+   * pointing up.
+   * If <code>sensor_frame_has_z_axis_forward</code> is set, then the negated Y-coordinate is considered instead of the
+   * Z-coordinate of the point, since the Y-axis is pointing down in that case.
    * Initialized to 1.0. */
   
   /**
    * Initializes the member variables to the stated values.
    */
-  BankArgument(); 
+  BankArgument();
   
   /**
    * @brief Allow Bank to access private members of this class.
@@ -271,6 +293,7 @@ public:
   friend class Bank;
   
 private:
+  friend std::ostream& operator<<(std::ostream& os, const BankArgument& ba);
   std::string sensor_frame; 
   /**< The name of the sensor frame. Set to the frame of the sensor. */
   
@@ -300,6 +323,10 @@ private:
   /**< The maximum range the sensor can measure. 
    * For <code>sensor_msgs::LaserScan</code>, the corresponding value of the first message. 
    * For <code>sensor_msgs::PointCloud2</code>, this is set to <code>object_threshold_max_distance</code>. */
+  
+  bool sensor_is_360_degrees;
+  /**< Whether the sensor is scanning 360 degrees.
+   * This is determined based on the angle limits of the bank */
   
   void check(); 
   /**< Validate the specified values. For numeric values, this could include a range check. */
@@ -371,6 +398,7 @@ private:
   virtual long addFirstMessage(sensor_msgs::PointCloud2::ConstPtr);
   inline void initIndex();
   inline void advanceIndex();
+  void mergeFoundObjects(MovingObjectArray * moa);
   
   /* 
    * Recursive tracking of an object through history to get the indices of its middle, 

@@ -29,14 +29,19 @@ string base_frame
 # sensor (calculated based on angle_begin, angle_end,
 # distance_angle_begin and distance_angle_end as 
 # given below using the law of cosine).
-float64 seen_width
+float32 seen_width
 
 # In frame header.frame_id, angles are measured around 
-# the positive Z axis (counterclockwise, if Z is up)
-# with zero angle being forward along the x axis.
+# the positive Z axis (counterclockwise; Z is pointing up)
+# with zero angle being forward along the x axis, provided
+# that the frame is not an optical/camera frame.
+# In case of an optical frame (Z is pointing forward and Y
+# is pointing down), then angles are measured around the 
+# negative Y axis.
 # The angles given specify where the object is to be
 # found in the frame header.frame_id (this is thus 
-# relative to the x-axis of the sensor).
+# relative to the X-axis of the sensor in a regular frame
+# and relative the Z-axis, but negated, in an optical frame).
 float32 angle_begin
 float32 angle_end
 
@@ -66,10 +71,10 @@ geometry_msgs/Vector3 velocity_normalized_in_map_frame
 geometry_msgs/Vector3 velocity_normalized_in_fixed_frame
 geometry_msgs/Vector3 velocity_normalized_in_base_frame
 geometry_msgs/Vector3 velocity_normalized
-float64 speed_in_map_frame
-float64 speed_in_fixed_frame
-float64 speed_in_base_frame
-float64 speed
+float32 speed_in_map_frame
+float32 speed_in_fixed_frame
+float32 speed_in_base_frame
+float32 speed
 
 # The point on the object closest to the sensor.
 geometry_msgs/Vector3 closest_point_in_map_frame
