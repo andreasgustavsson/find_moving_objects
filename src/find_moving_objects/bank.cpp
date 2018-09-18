@@ -128,20 +128,20 @@ BankArgument::BankArgument()
   publish_objects_closest_point_markers = false;
   publish_objects_velocity_arrows = false;
   publish_objects_delta_position_lines = false;
+  publish_objects_width_lines = false;
   velocity_arrows_use_full_gray_scale = false;
   velocity_arrows_use_sensor_frame = false;
   velocity_arrows_use_base_frame = false;
   velocity_arrows_use_fixed_frame = false;
-  delta_position_lines_use_sensor_frame = false;
-  delta_position_lines_use_base_frame = false;
-  delta_position_lines_use_fixed_frame = false;
   velocity_arrow_ns = "velocity_arrow_ns";
   delta_position_line_ns = "delta_position_line_ns";
+  width_line_ns = "width_line_ns";
   topic_objects = "/moving_objects_arrays";
-  topic_ema = "";
-  topic_objects_closest_point_markers = "";
-  topic_objects_velocity_arrows = "";
-  topic_objects_delta_position_lines = "";
+  topic_ema = "/ema";
+  topic_objects_closest_point_markers = "/objects_closest_point_markers";
+  topic_objects_velocity_arrows = "/objects_velocity_arrows";
+  topic_objects_delta_position_lines = "/objects_delta_position_lines";
+  topic_objects_width_lines = "/objects_width_lines";
   publish_buffer_size = 10;
   map_frame = "map";
   fixed_frame = "odom";
@@ -181,13 +181,11 @@ std::ostream& operator<<(std::ostream & os, const BankArgument & ba)
     "  publish_objects_closest_point_markers = " << ba.publish_objects_closest_point_markers << std::endl <<
     "  publish_objects_velocity_arrows = " << ba.publish_objects_velocity_arrows << std::endl <<
     "  publish_objects_delta_position_lines = " << ba.publish_objects_delta_position_lines << std::endl <<
+    "  publish_objects_width_lines = " << ba.publish_objects_width_lines << std::endl <<
     "  velocity_arrows_use_full_gray_scale = " << ba.velocity_arrows_use_full_gray_scale << std::endl <<
     "  velocity_arrows_use_sensor_frame = " << ba.velocity_arrows_use_sensor_frame << std::endl <<
     "  velocity_arrows_use_base_frame = " << ba.velocity_arrows_use_base_frame << std::endl <<
     "  velocity_arrows_use_fixed_frame = " << ba.velocity_arrows_use_fixed_frame << std::endl <<
-    "  delta_position_lines_use_sensor_frame = " << ba.delta_position_lines_use_sensor_frame << std::endl <<
-    "  delta_position_lines_use_base_frame = " << ba.delta_position_lines_use_base_frame << std::endl <<
-    "  delta_position_lines_use_fixed_frame = " << ba.delta_position_lines_use_fixed_frame << std::endl <<
     "  velocity_arrow_ns = " << ba.velocity_arrow_ns << std::endl <<
     "  delta_position_line_ns = " << ba.delta_position_line_ns << std::endl <<
     "  topic_objects = " << ba.topic_objects << std::endl <<
@@ -195,6 +193,7 @@ std::ostream& operator<<(std::ostream & os, const BankArgument & ba)
     "  topic_objects_closest_point_markers = " << ba.topic_objects_closest_point_markers << std::endl <<
     "  topic_objects_velocity_arrows = " << ba.topic_objects_velocity_arrows << std::endl <<
     "  topic_objects_delta_position_lines = " << ba.topic_objects_delta_position_lines << std::endl <<
+    "  topic_objects_width_lines = " << ba.topic_objects_width_lines << std::endl <<
     "  publish_buffer_size = " << ba.publish_buffer_size << std::endl <<
     "  map_frame = " << ba.map_frame << std::endl <<
     "  fixed_frame = " << ba.fixed_frame << std::endl <<
@@ -267,11 +266,6 @@ void BankArgument::check()
   ROS_ASSERT_MSG(0 < points_per_scan, 
                  "There must be at least 1 point per scan.");
   
-//   ROS_ASSERT_MSG(-M_PI <= angle_min && angle_min <= angle_max,
-//                  "Please specify a valid angle in the range [-PI,angle_max]."); 
-//   
-//   ROS_ASSERT_MSG(angle_min <= angle_max && angle_max <= M_PI, 
-//                  "Please specify a valid angle in the range [-PI,angle_max]."); 
   ROS_ASSERT_MSG(angle_max - angle_min <= TWO_PI, 
                  "Angle interval cannot be larger than 2*PI (360 degrees)."); 
   
@@ -310,6 +304,9 @@ void BankArgument::check()
   ROS_ASSERT_MSG(!publish_objects_delta_position_lines || delta_position_line_ns != "", 
                  "If publishing delta position lines, then a name space for them must be given."); 
   
+  ROS_ASSERT_MSG(!publish_objects_width_lines || width_line_ns != "", 
+                 "If publishing width lines, then a name space for them must be given."); 
+  
   ROS_ASSERT_MSG(!publish_objects || topic_objects != "", 
                  "If publishing MovingObjectArray messages, then a topic for that must be given."); 
   
@@ -327,6 +324,10 @@ void BankArgument::check()
   
   ROS_ASSERT_MSG(!publish_objects_delta_position_lines || topic_objects_delta_position_lines != "", 
                  "If publishing the delta position of each object via MarkerArray visualization messages, "
+                 "then a topic for that must be given."); 
+  
+  ROS_ASSERT_MSG(!publish_objects_width_lines || topic_objects_width_lines != "", 
+                 "If publishing the width of each object via MarkerArray visualization messages, "
                  "then a topic for that must be given."); 
   
   ROS_ASSERT_MSG(1 <= publish_buffer_size, 
@@ -405,13 +406,17 @@ void Bank::initBank(BankArgument bank_argument)
   pub_objects_delta_position_lines = 
     node->advertise<visualization_msgs::MarkerArray>(bank_argument.topic_objects_delta_position_lines, 
                                                      bank_argument.publish_buffer_size);
+  pub_objects_width_lines = 
+    node->advertise<visualization_msgs::MarkerArray>(bank_argument.topic_objects_width_lines, 
+                                                     bank_argument.publish_buffer_size);
   pub_objects = 
     node->advertise<MovingObjectArray>(bank_argument.topic_objects, 
                                                             bank_argument.publish_buffer_size);
   
   /* Init bank */
   this->bank_argument = bank_argument;
-  this->bank_argument.sensor_is_360_degrees = fabsf(bank_argument.angle_max - bank_argument.angle_min - TWO_PI) <= 0.03;
+  this->bank_argument.sensor_is_360_degrees = fabsf(bank_argument.angle_max - bank_argument.angle_min - TWO_PI) <= 
+                                              2.0 * bank_argument.angle_increment; // Safety margin
   
   bank_stamp = (double *) malloc(bank_argument.nr_scans_in_bank * sizeof(double));
   bank_ranges_ema = (float **) malloc(bank_argument.nr_scans_in_bank * sizeof(float*));
@@ -483,22 +488,7 @@ void Bank::initBank(BankArgument bank_argument)
   // Lines for delta position
   if (bank_argument.publish_objects_delta_position_lines)
   {
-    if (bank_argument.delta_position_lines_use_sensor_frame)
-    {
-      msg_objects_delta_position_line.header.frame_id = bank_argument.sensor_frame;
-    }
-    else if (bank_argument.delta_position_lines_use_base_frame)
-    {
-      msg_objects_delta_position_line.header.frame_id = bank_argument.base_frame;
-    }
-    else if (bank_argument.delta_position_lines_use_fixed_frame)
-    {
-      msg_objects_delta_position_line.header.frame_id = bank_argument.fixed_frame;
-    }
-    else // map frame
-    {
-      msg_objects_delta_position_line.header.frame_id = bank_argument.map_frame;
-    }
+    msg_objects_delta_position_line.header.frame_id = bank_argument.sensor_frame;
     msg_objects_delta_position_line.ns = bank_argument.delta_position_line_ns;
     msg_objects_delta_position_line.type = visualization_msgs::Marker::LINE_STRIP;
     msg_objects_delta_position_line.action = visualization_msgs::Marker::ADD;
@@ -509,7 +499,7 @@ void Bank::initBank(BankArgument bank_argument)
     //       msg_objects_delta_position_line.pose.orientation.y = 0.0;
     //       msg_objects_delta_position_line.pose.orientation.z = 0.0;
     msg_objects_delta_position_line.pose.orientation.w = 1.0; // No translation or rotation
-    msg_objects_delta_position_line.scale.x = 0.05; // diameter
+    msg_objects_delta_position_line.scale.x = 0.04; // diameter
     //       msg_objects_delta_position_line.scale.y = 0.0;  
     //       msg_objects_delta_position_line.scale.z = 0.0;
     //       msg_objects_delta_position_line.color.r = 0.0;
@@ -521,6 +511,33 @@ void Bank::initBank(BankArgument bank_argument)
     msg_objects_delta_position_line.points.resize(2);
 //     msg_objects_delta_position_line.points[0].z = 0.0;
 //     msg_objects_delta_position_line.points[1].z = 0.0;
+  }
+  // Lines for width
+  if (bank_argument.publish_objects_width_lines)
+  {
+    msg_objects_width_line.header.frame_id = bank_argument.sensor_frame;
+    msg_objects_width_line.ns = bank_argument.width_line_ns;
+    msg_objects_width_line.type = visualization_msgs::Marker::LINE_STRIP;
+    msg_objects_width_line.action = visualization_msgs::Marker::ADD;
+    //       msg_objects_width_line.pose.position.x = 0.0;
+    //       msg_objects_width_line.pose.position.y = 0.0;
+    //       msg_objects_width_line.pose.position.z = 0.0;
+    //       msg_objects_width_line.pose.orientation.x = 0.0;
+    //       msg_objects_width_line.pose.orientation.y = 0.0;
+    //       msg_objects_width_line.pose.orientation.z = 0.0;
+    msg_objects_width_line.pose.orientation.w = 1.0; // No translation or rotation
+    msg_objects_width_line.scale.x = 0.02; // diameter
+    //       msg_objects_width_line.scale.y = 0.0;  
+    //       msg_objects_width_line.scale.z = 0.0;
+    //       msg_objects_width_line.color.r = 0.0;
+    msg_objects_width_line.color.g = 1.0; // Green lines
+//     msg_objects_width_line.color.b = 1.0;
+    msg_objects_width_line.color.a = 1.0;
+    msg_objects_width_line.lifetime = ros::Duration(0.4);
+    msg_objects_width_line.frame_locked = true;
+    msg_objects_width_line.points.resize(2);
+//     msg_objects_width_line.points[0].z = 0.0;
+//     msg_objects_width_line.points[1].z = 0.0;
   }
   // Laserscan points for closest points
   if (bank_argument.publish_objects_closest_point_markers)
@@ -1668,7 +1685,7 @@ void Bank::findAndReportMovingObjects()
     pub_ema.publish(msg_ema);
   }
   
-  // Update headers of the marker, arrow and delta position messages
+  // Update headers of the marker, arrow, delta position and width messages
   if (bank_argument.publish_objects_closest_point_markers)
   {
     msg_objects_closest_point_markers.header.stamp = now;
@@ -1683,6 +1700,11 @@ void Bank::findAndReportMovingObjects()
   {
     msg_objects_delta_position_line.header.stamp = now;
     msg_objects_delta_position_line.header.seq = moa_seq;
+  }
+  if (bank_argument.publish_objects_width_lines)
+  {
+    msg_objects_width_line.header.stamp = now;
+    msg_objects_width_line.header.seq = moa_seq;
   }
   
   // Go through found objects
@@ -1777,53 +1799,50 @@ void Bank::findAndReportMovingObjects()
     if (bank_argument.publish_objects_delta_position_lines)
     {
       msg_objects_delta_position_line.id = i;
-      if (bank_argument.delta_position_lines_use_sensor_frame)
+
+      // Copy line end points
+      msg_objects_delta_position_line.points[0].x = mo_old_positions->position.x;
+      msg_objects_delta_position_line.points[0].y = mo_old_positions->position.y;
+      msg_objects_delta_position_line.points[0].z = mo_old_positions->position.z;
+      msg_objects_delta_position_line.points[1].x = mo->position.x;
+      msg_objects_delta_position_line.points[1].y = mo->position.y;
+      msg_objects_delta_position_line.points[1].z = mo->position.z;
+
+      // Add to array of markers
+      msg_objects_delta_position_lines.markers.push_back(msg_objects_delta_position_line);
+    }
+    
+    // Visualization Marker (width)
+    if (bank_argument.publish_objects_width_lines)
+    {
+      msg_objects_width_line.id = i;
+
+      // Calculate line end points
+      if (!bank_argument.sensor_frame_has_z_axis_forward)
       {
-        // Origin: (the size of points is 2)
-        msg_objects_delta_position_line.points[0].x = mo_old_positions->position.x;
-        msg_objects_delta_position_line.points[0].y = mo_old_positions->position.y;
-        msg_objects_delta_position_line.points[0].z = mo_old_positions->position.z;
-        // End:
-        msg_objects_delta_position_line.points[1].x = mo->position.x;
-        msg_objects_delta_position_line.points[1].y = mo->position.y;
-        msg_objects_delta_position_line.points[1].z = mo->position.z;
-      }
-      else if (bank_argument.delta_position_lines_use_base_frame)
-      {
-        // Origin (the size of points is 2)
-        msg_objects_delta_position_line.points[0].x = mo_old_positions->position_in_base_frame.x;
-        msg_objects_delta_position_line.points[0].y = mo_old_positions->position_in_base_frame.y;
-        msg_objects_delta_position_line.points[0].z = mo_old_positions->position_in_base_frame.z;
-        // End:
-        msg_objects_delta_position_line.points[1].x = mo->position_in_base_frame.x;
-        msg_objects_delta_position_line.points[1].y = mo->position_in_base_frame.y;
-        msg_objects_delta_position_line.points[1].z = mo->position_in_base_frame.z;
-      }
-      else if (bank_argument.delta_position_lines_use_fixed_frame)
-      {
-        // Origin (the size of points is 2)
-        msg_objects_delta_position_line.points[0].x = mo_old_positions->position_in_fixed_frame.x;
-        msg_objects_delta_position_line.points[0].y = mo_old_positions->position_in_fixed_frame.y;
-        msg_objects_delta_position_line.points[0].z = mo_old_positions->position_in_fixed_frame.z;
-        // End:
-        msg_objects_delta_position_line.points[1].x = mo->position_in_fixed_frame.x;
-        msg_objects_delta_position_line.points[1].y = mo->position_in_fixed_frame.y;
-        msg_objects_delta_position_line.points[1].z = mo->position_in_fixed_frame.z;
+        // angle_min
+        msg_objects_width_line.points[0].x = mo->distance_at_angle_begin * cosf(mo->angle_begin);
+        msg_objects_width_line.points[0].y = mo->distance_at_angle_begin * sinf(mo->angle_begin);
+        msg_objects_width_line.points[0].z = 0.0;
+        // angle_max
+        msg_objects_width_line.points[1].x = mo->distance_at_angle_end * cosf(mo->angle_end);
+        msg_objects_width_line.points[1].y = mo->distance_at_angle_end * sinf(mo->angle_end);
+        msg_objects_width_line.points[1].z = 0.0;
       }
       else
       {
-        // Origin (the size of points is 2)
-        msg_objects_delta_position_line.points[0].x = mo_old_positions->position_in_map_frame.x;
-        msg_objects_delta_position_line.points[0].y = mo_old_positions->position_in_map_frame.y;
-        msg_objects_delta_position_line.points[0].z = mo_old_positions->position_in_map_frame.z;
-        // End:
-        msg_objects_delta_position_line.points[1].x = mo->position_in_map_frame.x;
-        msg_objects_delta_position_line.points[1].y = mo->position_in_map_frame.y;
-        msg_objects_delta_position_line.points[1].z = mo->position_in_map_frame.z;
+        // angle_min
+        msg_objects_width_line.points[0].x = -mo->distance_at_angle_begin * sinf(mo->angle_begin);
+        msg_objects_width_line.points[0].y = 0.0;
+        msg_objects_width_line.points[0].z = mo->distance_at_angle_begin * cosf(mo->angle_begin);
+        // angle_max
+        msg_objects_width_line.points[1].x = -mo->distance_at_angle_end * sinf(mo->angle_end);
+        msg_objects_width_line.points[1].y = 0.0;
+        msg_objects_width_line.points[1].z = mo->distance_at_angle_end * cosf(mo->angle_end);
       }
       
       // Add to array of markers
-      msg_objects_delta_position_lines.markers.push_back(msg_objects_delta_position_line);
+      msg_objects_width_lines.markers.push_back(msg_objects_width_line);
     }
   }
   
@@ -1845,6 +1864,12 @@ void Bank::findAndReportMovingObjects()
     pub_objects_delta_position_lines.publish(msg_objects_delta_position_lines);
   }
   
+  // Dito
+  if (bank_argument.publish_objects_width_lines)
+  {
+    pub_objects_width_lines.publish(msg_objects_width_lines);
+  }
+  
   // Reset range and intensity of markers and delete found objects
   if (bank_argument.publish_objects_closest_point_markers)
   {
@@ -1864,6 +1889,10 @@ void Bank::findAndReportMovingObjects()
   if (bank_argument.publish_objects_delta_position_lines)
   {
     msg_objects_delta_position_lines.markers.clear();
+  }
+  if (bank_argument.publish_objects_width_lines)
+  {
+    msg_objects_width_lines.markers.clear();
   }
   if (bank_argument.publish_ema)
   {

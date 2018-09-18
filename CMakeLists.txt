@@ -142,6 +142,8 @@ add_dependencies(find_moving_objects ${PROJECT_NAME}_generate_messages)
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/${PROJECT_NAME}_node.cpp)
+add_executable(laserscan_interpreter_node src/laserscan_interpreter_node.cpp)
+add_executable(pointcloud2_interpreter_node src/pointcloud2_interpreter_node.cpp)
 add_executable(moving_objects_confidence_enhancer_node src/moving_objects_confidence_enhancer_node.cpp)
 
 ## Rename C++ executable without prefix
@@ -153,6 +155,8 @@ add_executable(moving_objects_confidence_enhancer_node src/moving_objects_confid
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(laserscan_interpreter_node option find_moving_objects)
+add_dependencies(pointcloud2_interpreter_node option find_moving_objects)
 add_dependencies(moving_objects_confidence_enhancer_node ${PROJECT_NAME}_generate_messages)
 add_dependencies(moving_objects_confidence_enhancer_node option)
 
@@ -166,6 +170,20 @@ find_moving_objects
 target_link_libraries(
 option
   ${catkin_LIBRARIES}
+)
+
+target_link_libraries(
+laserscan_interpreter_node
+  ${catkin_LIBRARIES}
+  option
+  find_moving_objects
+)
+
+target_link_libraries(
+pointcloud2_interpreter_node
+  ${catkin_LIBRARIES}
+  option
+  find_moving_objects
 )
 
 target_link_libraries(

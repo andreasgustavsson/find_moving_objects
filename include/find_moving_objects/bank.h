@@ -161,6 +161,11 @@ public:
    * showing the change in position between the oldest and newest scans in the bank for each found object.
    * Initialized to <code>false</code>.  */
   
+  bool publish_objects_width_lines; 
+  /**< Whether to publish lines, using <code>visualization_msgs::MarkerArray</code> messages, 
+   * showing the width for each found object.
+   * Initialized to <code>false</code>.  */
+  
   bool velocity_arrows_use_full_gray_scale; 
   /**< Whether to color the arrows using the full gray scale 
    * ([0,1];  0=low,  1=high confidence), 
@@ -182,21 +187,6 @@ public:
    * (if several frame options are true, then sensor, base, fixed, map (default) is the precedence order). 
    * Initialized to <code>false</code>. */
   
-  bool delta_position_lines_use_sensor_frame; 
-  /**< Show lines in sensor frame 
-   * (if several frame options are true, then sensor, base, fixed, map (default) is the precedence order). 
-   * Initialized to <code>false</code>. */
-  
-  bool delta_position_lines_use_base_frame;
-  /**< Show lines in base frame 
-   * (if several frame options are true, then sensor, base, fixed, map (default) is the precedence order). 
-   * Initialized to <code>false</code>. */
-  
-  bool delta_position_lines_use_fixed_frame; 
-  /**< Show lines in fixed frame 
-   * (if several frame options are true, then sensor, base, fixed, map (default) is the precedence order). 
-   * Initialized to <code>false</code>. */
-  
   std::string velocity_arrow_ns; 
   /**< Namespace of the velocity arrows. 
    * Initialized to <code>"velocity_arrow_ns"</code>. */
@@ -205,25 +195,33 @@ public:
   /**< Namespace of the delta position lines. 
    * Initialized to <code>"delta_position_line_ns"</code>. */
   
+  std::string width_line_ns; 
+  /**< Namespace of the width lines. 
+   * Initialized to <code>"width_line_ns"</code>. */
+  
   std::string topic_objects; 
   /**< The topic on which to publish <code>find_moving_objects::MovingObjectArray</code> messages. 
    * Initialized to <code>"/moving_objects_arrays"</code>. */
   
   std::string topic_ema;
   /**< The topic on which to publish the messages showing which scan points define objects.
-   * Initialized to the emtpy string, "". */
+   * Initialized to <code>"/ema;"</code>. */
   
   std::string topic_objects_closest_point_markers; 
   /**< The topic on which to publish the messages showing the point on each found object closest to the sensor.
-   * Initialized to the emtpy string, "". */
+   * Initialized to <code>"/objects_closest_point_markers"</code>. */
   
   std::string topic_objects_velocity_arrows; 
   /**< The topic on which to publish the messages showing the position and velocity of each found object using arrows.
-   * Initialized to the emtpy string, "". */
+   * Initialized to <code>"/objects_velocity_arrows"</code>. */
   
   std::string topic_objects_delta_position_lines;
   /**< The topic on which to publish the messages showing the delta position of each found object using lines.
-   * Initialized to the emtpy string, "". */
+   * Initialized to <code>"/objects_delta_position_lines"</code>. */
+  
+  std::string topic_objects_width_lines;
+  /**< The topic on which to publish the messages showing the width of each found object using lines.
+   * Initialized to <code>"/objects_width_lines"</code>. */
   
   long publish_buffer_size; 
   /**< The size of each publish buffer. 
@@ -379,6 +377,7 @@ private:
   ros::Publisher pub_objects_closest_point_markers;
   ros::Publisher pub_objects_velocity_arrows;
   ros::Publisher pub_objects_delta_position_lines;
+  ros::Publisher pub_objects_width_lines;
   ros::Publisher pub_objects;
   
   /* SEQUENCE NR */
@@ -391,6 +390,8 @@ private:
   visualization_msgs::Marker msg_objects_velocity_arrow;       // ... one per object
   visualization_msgs::MarkerArray msg_objects_delta_position_lines; // For visualizing delta positions using lines...
   visualization_msgs::Marker msg_objects_delta_position_line;       // ... one per object
+  visualization_msgs::MarkerArray msg_objects_width_lines; // For visualizing width using lines...
+  visualization_msgs::Marker msg_objects_width_line;       // ... one per object
   
   /* Basic functionality used by the functions below*/
   void initBank(BankArgument bank_argument);
