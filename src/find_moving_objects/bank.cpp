@@ -46,11 +46,13 @@
 #include <visualization_msgs/MarkerArray.h>
 #include <tf/tf.h>
 #include <tf/transform_listener.h>
+#include <geometry_msgs/Vector3.h>
 
 /* C/C++ */
 #include <iostream> 
 #include <sstream>
 #include <string>
+#include <cstring>
 #include <cmath>
 // #include <pthread.h>
 
@@ -60,16 +62,59 @@
 #include <find_moving_objects/bank.h>
 
 
+namespace geometry_msgs
+{
+Vector3 operator*(float f, Vector3 v1)
+{
+  Vector3 v;
+  v.x = f * v1.x;
+  v.y = f * v1.y;
+  v.z = f * v1.z;
+  return v;
+}
+Vector3 operator*(Vector3 v1, float f)
+{
+  return f*v1;
+}
+Vector3 operator/(Vector3 v1, float f)
+{
+  Vector3 v;
+  v.x = v1.x / f;
+  v.y = v1.y / f;
+  v.z = v1.z / f;
+  return v;
+}
+float operator^(Vector3 v1, Vector3 v2)
+{
+  return v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
+}
+Vector3 operator+(Vector3 v1, Vector3 v2)
+{
+  Vector3 v;
+  v.x = v1.x + v2.x;
+  v.y = v1.y + v2.y;
+  v.z = v1.z + v2.z;
+  return v;
+}
+} // namespace geometry_msgs
+
+
+namespace find_moving_objects
+{
+
+const float TWO_PI = 2*M_PI;
+
 /*
  * Constructors
  */
-find_moving_objects::BankArgument::BankArgument()
+BankArgument::BankArgument()
 {
   ema_alpha = 1.0;
   nr_scans_in_bank = 11;
   points_per_scan = 360;
   angle_min = -M_PI;
   angle_max = M_PI;
+  sensor_frame_has_z_axis_forward = false;
   object_threshold_edge_max_delta_range = 0.15;
   object_threshold_min_nr_points = 5;
   object_threshold_max_distance = 6.5;
@@ -83,24 +128,28 @@ find_moving_objects::BankArgument::BankArgument()
   publish_objects_closest_point_markers = false;
   publish_objects_velocity_arrows = false;
   publish_objects_delta_position_lines = false;
+  publish_objects_width_lines = false;
   velocity_arrows_use_full_gray_scale = false;
   velocity_arrows_use_sensor_frame = false;
   velocity_arrows_use_base_frame = false;
   velocity_arrows_use_fixed_frame = false;
-  delta_position_lines_use_sensor_frame = false;
-  delta_position_lines_use_base_frame = false;
-  delta_position_lines_use_fixed_frame = false;
   velocity_arrow_ns = "velocity_arrow_ns";
   delta_position_line_ns = "delta_position_line_ns";
+  width_line_ns = "width_line_ns";
   topic_objects = "/moving_objects_arrays";
-  topic_ema = "";
-  topic_objects_closest_point_markers = "";
-  topic_objects_velocity_arrows = "";
-  topic_objects_delta_position_lines = "";
+  topic_ema = "/ema";
+  topic_objects_closest_point_markers = "/objects_closest_point_markers";
+  topic_objects_velocity_arrows = "/objects_velocity_arrows";
+  topic_objects_delta_position_lines = "/objects_delta_position_lines";
+  topic_objects_width_lines = "/objects_width_lines";
   publish_buffer_size = 10;
   map_frame = "map";
   fixed_frame = "odom";
   base_frame = "base_link";
+  merge_threshold_max_angle_gap = 0.0 / 180.0 * M_PI;
+  merge_threshold_max_end_points_distance_delta = 0.2;
+  merge_threshold_max_velocity_direction_delta = 25.0 / 180.0 * M_PI;
+  merge_threshold_max_speed_delta = 0.2;
   PC2_message_x_coordinate_field_name = "x";
   PC2_message_y_coordinate_field_name = "y";
   PC2_message_z_coordinate_field_name = "z";
@@ -109,7 +158,70 @@ find_moving_objects::BankArgument::BankArgument()
   PC2_threshold_z_max = 1.0;
 }
 
-find_moving_objects::Bank::Bank()
+std::ostream& operator<<(std::ostream & os, const BankArgument & ba)
+{
+  os << "Bank Arguments:" << std::endl <<
+    "  ema_alpha = " << ba.ema_alpha << std::endl <<
+    "  nr_scans_in_bank = " << ba.nr_scans_in_bank << std::endl <<
+    "  points_per_scan = " << ba.points_per_scan << std::endl <<
+    "  angle_min = " << ba.angle_min << std::endl <<
+    "  angle_max = " << ba.angle_max << std::endl <<
+    "  sensor_frame_has_z_axis_forward = " << ba.sensor_frame_has_z_axis_forward << std::endl <<
+    "  object_threshold_edge_max_delta_range = " << ba.object_threshold_edge_max_delta_range << std::endl <<
+    "  object_threshold_min_nr_points = " << ba.object_threshold_min_nr_points << std::endl <<
+    "  object_threshold_max_distance = " << ba.object_threshold_max_distance << std::endl <<
+    "  object_threshold_min_speed = " << ba.object_threshold_min_speed << std::endl <<
+    "  object_threshold_max_delta_width_in_points = " << ba.object_threshold_max_delta_width_in_points << std::endl <<
+    "  object_threshold_min_confidence = " << ba.object_threshold_min_confidence << std::endl <<
+    "  object_threshold_bank_tracking_max_delta_distance = " <<
+    ba.object_threshold_bank_tracking_max_delta_distance << std::endl <<
+    "  base_confidence = " << ba.base_confidence << std::endl <<
+    "  publish_objects = " << ba.publish_objects << std::endl <<
+    "  publish_ema = " << ba.publish_ema << std::endl <<
+    "  publish_objects_closest_point_markers = " << ba.publish_objects_closest_point_markers << std::endl <<
+    "  publish_objects_velocity_arrows = " << ba.publish_objects_velocity_arrows << std::endl <<
+    "  publish_objects_delta_position_lines = " << ba.publish_objects_delta_position_lines << std::endl <<
+    "  publish_objects_width_lines = " << ba.publish_objects_width_lines << std::endl <<
+    "  velocity_arrows_use_full_gray_scale = " << ba.velocity_arrows_use_full_gray_scale << std::endl <<
+    "  velocity_arrows_use_sensor_frame = " << ba.velocity_arrows_use_sensor_frame << std::endl <<
+    "  velocity_arrows_use_base_frame = " << ba.velocity_arrows_use_base_frame << std::endl <<
+    "  velocity_arrows_use_fixed_frame = " << ba.velocity_arrows_use_fixed_frame << std::endl <<
+    "  velocity_arrow_ns = " << ba.velocity_arrow_ns << std::endl <<
+    "  delta_position_line_ns = " << ba.delta_position_line_ns << std::endl <<
+    "  topic_objects = " << ba.topic_objects << std::endl <<
+    "  topic_ema = " << ba.topic_ema << std::endl <<
+    "  topic_objects_closest_point_markers = " << ba.topic_objects_closest_point_markers << std::endl <<
+    "  topic_objects_velocity_arrows = " << ba.topic_objects_velocity_arrows << std::endl <<
+    "  topic_objects_delta_position_lines = " << ba.topic_objects_delta_position_lines << std::endl <<
+    "  topic_objects_width_lines = " << ba.topic_objects_width_lines << std::endl <<
+    "  publish_buffer_size = " << ba.publish_buffer_size << std::endl <<
+    "  map_frame = " << ba.map_frame << std::endl <<
+    "  fixed_frame = " << ba.fixed_frame << std::endl <<
+    "  base_frame = " << ba.base_frame << std::endl <<
+    "  merge_threshold_max_angle_gap = " << ba.merge_threshold_max_angle_gap << std::endl <<
+    "  merge_threshold_max_end_points_distance_delta = " << 
+    ba.merge_threshold_max_end_points_distance_delta << std::endl <<
+    "  merge_threshold_max_velocity_direction_delta = " << 
+    ba.merge_threshold_max_velocity_direction_delta << std::endl <<
+    "  merge_threshold_max_speed_delta = " << ba.merge_threshold_max_speed_delta << std::endl <<
+    "  PC2_message_x_coordinate_field_name = " << ba.PC2_message_x_coordinate_field_name << std::endl <<
+    "  PC2_message_y_coordinate_field_name = " << ba.PC2_message_y_coordinate_field_name << std::endl <<
+    "  PC2_message_z_coordinate_field_name = " << ba.PC2_message_z_coordinate_field_name << std::endl <<
+    "  PC2_voxel_leaf_size = " << ba.PC2_voxel_leaf_size << std::endl <<
+    "  PC2_threshold_z_min = " << ba.PC2_threshold_z_min << std::endl <<
+    "  PC2_threshold_z_max = " << ba.PC2_threshold_z_max << std::endl;
+  os << "Private Bank Arguments:" << std::endl <<
+    "  sensor_frame = " << ba.sensor_frame << std::endl <<
+    "  angle_increment = " << ba.angle_increment << std::endl << 
+    "  time_increment = " << ba.time_increment << std::endl << 
+    "  scan_time = " << ba.scan_time << std::endl << 
+    "  range_min = " << ba.range_min << std::endl <<
+    "  range_max = " << ba.range_max << std::endl;
+  
+  return os;
+}
+
+Bank::Bank()
 {
   bank_is_initialized = false;
   bank_is_filled = false;
@@ -129,7 +241,7 @@ find_moving_objects::Bank::Bank()
 /*
  * Destructor
  */
-find_moving_objects::Bank::~Bank()
+Bank::~Bank()
 {
   for (int i=0; i<bank_argument.nr_scans_in_bank; ++i)
   {
@@ -143,7 +255,7 @@ find_moving_objects::Bank::~Bank()
 /*
  * Check values of bank arguments.
  */
-void find_moving_objects::BankArgument::check()
+void BankArgument::check()
 {
   ROS_ASSERT_MSG(0.0 <= ema_alpha && ema_alpha <= 1.0,
                  "The EMA weighting decrease coefficient must be a value in [0,1]."); 
@@ -154,11 +266,8 @@ void find_moving_objects::BankArgument::check()
   ROS_ASSERT_MSG(0 < points_per_scan, 
                  "There must be at least 1 point per scan.");
   
-  ROS_ASSERT_MSG(-M_PI <= angle_min && angle_min <= angle_max,
-                 "Please specify a valid angle in the range [-PI,angle_max]."); 
-  
-  ROS_ASSERT_MSG(angle_min <= angle_max && angle_max <= M_PI, 
-                 "Please specify a valid angle in the range [-PI,angle_max]."); 
+  ROS_ASSERT_MSG(angle_max - angle_min <= TWO_PI, 
+                 "Angle interval cannot be larger than 2*PI (360 degrees)."); 
   
   ROS_ASSERT_MSG(0.0 <= object_threshold_edge_max_delta_range, 
                  "Cannot be negative."); 
@@ -177,7 +286,8 @@ void find_moving_objects::BankArgument::check()
   
   ROS_ASSERT_MSG(0.0 <= object_threshold_min_confidence && object_threshold_min_confidence <= 1.0, 
                  "Cannot be negative or larger than 1.0."); 
-  
+
+//   ROS_ASSERT_MSG(sensor_frame_has_z_axis_forward);
 //   ROS_ASSERT_MSG(base_confidence); 
 //   ROS_ASSERT_MSG(publish_objects); 
 //   ROS_ASSERT_MSG(publish_ema); 
@@ -193,6 +303,9 @@ void find_moving_objects::BankArgument::check()
   
   ROS_ASSERT_MSG(!publish_objects_delta_position_lines || delta_position_line_ns != "", 
                  "If publishing delta position lines, then a name space for them must be given."); 
+  
+  ROS_ASSERT_MSG(!publish_objects_width_lines || width_line_ns != "", 
+                 "If publishing width lines, then a name space for them must be given."); 
   
   ROS_ASSERT_MSG(!publish_objects || topic_objects != "", 
                  "If publishing MovingObjectArray messages, then a topic for that must be given."); 
@@ -213,6 +326,10 @@ void find_moving_objects::BankArgument::check()
                  "If publishing the delta position of each object via MarkerArray visualization messages, "
                  "then a topic for that must be given."); 
   
+  ROS_ASSERT_MSG(!publish_objects_width_lines || topic_objects_width_lines != "", 
+                 "If publishing the width of each object via MarkerArray visualization messages, "
+                 "then a topic for that must be given."); 
+  
   ROS_ASSERT_MSG(1 <= publish_buffer_size, 
                  "Publish buffer size must be at least 1."); 
   
@@ -224,13 +341,25 @@ void find_moving_objects::BankArgument::check()
   
   ROS_ASSERT_MSG(base_frame != "", 
                  "Please specify base frame."); 
+  
+  ROS_ASSERT_MSG(0.0 <= merge_threshold_max_angle_gap && merge_threshold_max_angle_gap <= angle_max - angle_min,
+                 "Invalid gap angle.");
+  
+  ROS_ASSERT_MSG(0.0 <= merge_threshold_max_end_points_distance_delta,
+                 "Distance delta cannot be negative.");
+  
+  ROS_ASSERT_MSG(0.0 <= merge_threshold_max_velocity_direction_delta && merge_threshold_max_velocity_direction_delta <= M_PI,
+                 "The maximum angle between two vectors is always greater than 0 and smaller than PI.");
+  
+  ROS_ASSERT_MSG(0.0 <= merge_threshold_max_speed_delta,
+                 "Speed delta cannot be negative.");
 }
 
   
 /*
  * Check values of bank arguments, PC2-specific.
  */
-void find_moving_objects::BankArgument::check_PC2()
+void BankArgument::check_PC2()
 {
   ROS_ASSERT_MSG(PC2_message_x_coordinate_field_name != "", 
                  "Please specify a field name for x coordinates, or do not alter the default value."); 
@@ -245,14 +374,14 @@ void find_moving_objects::BankArgument::check_PC2()
                  "Cannot be negative."); 
   
   ROS_ASSERT_MSG(PC2_threshold_z_min <= PC2_threshold_z_max, 
-                 "Unvalid thresholds."); 
+                 "Invalid thresholds."); 
 }
 
 
 /*
  * Initialize bank based on information received from the user and sensor
  */
-void find_moving_objects::Bank::initBank(BankArgument bank_argument)
+void Bank::initBank(BankArgument bank_argument)
 {
   if (bank_is_initialized)
   {
@@ -277,12 +406,17 @@ void find_moving_objects::Bank::initBank(BankArgument bank_argument)
   pub_objects_delta_position_lines = 
     node->advertise<visualization_msgs::MarkerArray>(bank_argument.topic_objects_delta_position_lines, 
                                                      bank_argument.publish_buffer_size);
+  pub_objects_width_lines = 
+    node->advertise<visualization_msgs::MarkerArray>(bank_argument.topic_objects_width_lines, 
+                                                     bank_argument.publish_buffer_size);
   pub_objects = 
-    node->advertise<find_moving_objects::MovingObjectArray>(bank_argument.topic_objects, 
+    node->advertise<MovingObjectArray>(bank_argument.topic_objects, 
                                                             bank_argument.publish_buffer_size);
   
   /* Init bank */
   this->bank_argument = bank_argument;
+  this->bank_argument.sensor_is_360_degrees = fabsf(bank_argument.angle_max - bank_argument.angle_min - TWO_PI) <= 
+                                              2.0 * bank_argument.angle_increment; // Safety margin
   
   bank_stamp = (double *) malloc(bank_argument.nr_scans_in_bank * sizeof(double));
   bank_ranges_ema = (float **) malloc(bank_argument.nr_scans_in_bank * sizeof(float*));
@@ -354,22 +488,7 @@ void find_moving_objects::Bank::initBank(BankArgument bank_argument)
   // Lines for delta position
   if (bank_argument.publish_objects_delta_position_lines)
   {
-    if (bank_argument.delta_position_lines_use_sensor_frame)
-    {
-      msg_objects_delta_position_line.header.frame_id = bank_argument.sensor_frame;
-    }
-    else if (bank_argument.delta_position_lines_use_base_frame)
-    {
-      msg_objects_delta_position_line.header.frame_id = bank_argument.base_frame;
-    }
-    else if (bank_argument.delta_position_lines_use_fixed_frame)
-    {
-      msg_objects_delta_position_line.header.frame_id = bank_argument.fixed_frame;
-    }
-    else // map frame
-    {
-      msg_objects_delta_position_line.header.frame_id = bank_argument.map_frame;
-    }
+    msg_objects_delta_position_line.header.frame_id = bank_argument.sensor_frame;
     msg_objects_delta_position_line.ns = bank_argument.delta_position_line_ns;
     msg_objects_delta_position_line.type = visualization_msgs::Marker::LINE_STRIP;
     msg_objects_delta_position_line.action = visualization_msgs::Marker::ADD;
@@ -380,7 +499,7 @@ void find_moving_objects::Bank::initBank(BankArgument bank_argument)
     //       msg_objects_delta_position_line.pose.orientation.y = 0.0;
     //       msg_objects_delta_position_line.pose.orientation.z = 0.0;
     msg_objects_delta_position_line.pose.orientation.w = 1.0; // No translation or rotation
-    msg_objects_delta_position_line.scale.x = 0.05; // diameter
+    msg_objects_delta_position_line.scale.x = 0.04; // diameter
     //       msg_objects_delta_position_line.scale.y = 0.0;  
     //       msg_objects_delta_position_line.scale.z = 0.0;
     //       msg_objects_delta_position_line.color.r = 0.0;
@@ -392,6 +511,33 @@ void find_moving_objects::Bank::initBank(BankArgument bank_argument)
     msg_objects_delta_position_line.points.resize(2);
 //     msg_objects_delta_position_line.points[0].z = 0.0;
 //     msg_objects_delta_position_line.points[1].z = 0.0;
+  }
+  // Lines for width
+  if (bank_argument.publish_objects_width_lines)
+  {
+    msg_objects_width_line.header.frame_id = bank_argument.sensor_frame;
+    msg_objects_width_line.ns = bank_argument.width_line_ns;
+    msg_objects_width_line.type = visualization_msgs::Marker::LINE_STRIP;
+    msg_objects_width_line.action = visualization_msgs::Marker::ADD;
+    //       msg_objects_width_line.pose.position.x = 0.0;
+    //       msg_objects_width_line.pose.position.y = 0.0;
+    //       msg_objects_width_line.pose.position.z = 0.0;
+    //       msg_objects_width_line.pose.orientation.x = 0.0;
+    //       msg_objects_width_line.pose.orientation.y = 0.0;
+    //       msg_objects_width_line.pose.orientation.z = 0.0;
+    msg_objects_width_line.pose.orientation.w = 1.0; // No translation or rotation
+    msg_objects_width_line.scale.x = 0.02; // diameter
+    //       msg_objects_width_line.scale.y = 0.0;  
+    //       msg_objects_width_line.scale.z = 0.0;
+    //       msg_objects_width_line.color.r = 0.0;
+    msg_objects_width_line.color.g = 1.0; // Green lines
+//     msg_objects_width_line.color.b = 1.0;
+    msg_objects_width_line.color.a = 1.0;
+    msg_objects_width_line.lifetime = ros::Duration(0.4);
+    msg_objects_width_line.frame_locked = true;
+    msg_objects_width_line.points.resize(2);
+//     msg_objects_width_line.points[0].z = 0.0;
+//     msg_objects_width_line.points[1].z = 0.0;
   }
   // Laserscan points for closest points
   if (bank_argument.publish_objects_closest_point_markers)
@@ -427,20 +573,20 @@ void find_moving_objects::Bank::initBank(BankArgument bank_argument)
  * Recursive tracking of an object through history to get the indices of its middle, 
  * left and right points in the oldest scans, along with the sum of all ranges etc.
  */
-void find_moving_objects::Bank::getOldIndices(const float range_min,
-                                              const float range_max,
-                                              const unsigned int object_width_in_points,
-                                              const int          current_level,
-                                              const unsigned int levels_searched,
-                                              const unsigned int index_mean,
-                                              const unsigned int consecutive_failures_to_find_object,
-                                              const unsigned int threshold_consecutive_failures_to_find_object,
-                                              int * index_min_old,
-                                              int * index_mean_old,
-                                              int * index_max_old,
-                                              float * range_sum_old,
-                                              float * range_at_min_index_old,
-                                              float * range_at_max_index_old)
+void Bank::getOldIndices(const float range_min,
+                         const float range_max,
+                         const unsigned int object_width_in_points,
+                         const int          current_level,
+                         const unsigned int levels_searched,
+                         const unsigned int index_mean,
+                         const unsigned int consecutive_failures_to_find_object,
+                         const unsigned int threshold_consecutive_failures_to_find_object,
+                         int * index_min_old,
+                         int * index_mean_old,
+                         int * index_max_old,
+                         float * range_sum_old,
+                         float * range_at_min_index_old,
+                         float * range_at_max_index_old)
 {
   // Base case reached?
   if (levels_searched == bank_argument.nr_scans_in_bank)
@@ -452,6 +598,8 @@ void find_moving_objects::Bank::getOldIndices(const float range_min,
   int left = index_mean;
   float prev_range = bank_ranges_ema[current_level][index_mean];
   float range_sum = prev_range;
+  int right_upper_limit_out_of_bounds = bank_argument.points_per_scan;
+  unsigned int width_in_points = 1; // prev_rang = range at index_mean
   
   // Check range
   if (prev_range < range_min ||
@@ -466,7 +614,8 @@ void find_moving_objects::Bank::getOldIndices(const float range_min,
     return;
   }
   
-  // Search lower index side
+  // Search lower index side, with possible wrap around
+  bool stopped = false;
   for (int i=index_mean-1; 0<=i; --i)
   {
     // Same type of range check as in the main code
@@ -478,19 +627,45 @@ void find_moving_objects::Bank::getOldIndices(const float range_min,
       left = i;
       prev_range = range;
       range_sum += range;
+      width_in_points++;
     }
     else
     {
+      stopped = true;
       break;
+    }
+  }
+  if (!stopped)
+  {
+    // Continue from highest index
+    for (int i=bank_argument.points_per_scan-1; index_mean<i; --i)
+    {
+      // Same type of range check as in the main code
+      const float range = bank_ranges_ema[current_level][i];
+      if (range_min <= range &&
+          range <= range_max &&
+          fabsf(range - prev_range) <= bank_argument.object_threshold_edge_max_delta_range)
+      {
+        left = i;
+        prev_range = range;
+        range_sum += range;
+        right_upper_limit_out_of_bounds--;
+        width_in_points++;
+      }
+      else
+      {
+        break;
+      }
     }
   }
   // prev_range holds the range at left
   *range_at_min_index_old = prev_range;
   
   // Search higher index side
+  stopped = false;
   int right = index_mean;
   prev_range = bank_ranges_ema[current_level][index_mean];
-  for (int i=index_mean+1; i<bank_argument.points_per_scan; ++i)
+  for (int i=index_mean+1; i<right_upper_limit_out_of_bounds; ++i)
   {
     // Same type of range check as in the main code
     const float range = bank_ranges_ema[current_level][i];
@@ -501,10 +676,35 @@ void find_moving_objects::Bank::getOldIndices(const float range_min,
       right = i;
       prev_range = range;
       range_sum += range;
+      width_in_points++;
     }
     else
     {
+      stopped = true;
       break;
+    }
+  }
+  // Here we must make sure that we have not already wrapped around while going left
+  if (!stopped && right_upper_limit_out_of_bounds == bank_argument.points_per_scan)
+  {
+    // Continue from lowest index (0) - we did not wrap around while going left
+    for (int i=0; i<left; ++i)
+    {
+      // Same type of range check as in the main code
+      const float range = bank_ranges_ema[current_level][i];
+      if (range_min <= range &&
+          range <= range_max &&
+          fabsf(range - prev_range) <= bank_argument.object_threshold_edge_max_delta_range)
+      {
+        right = i;
+        prev_range = range;
+        range_sum += range;
+        width_in_points++;
+      }
+      else
+      {
+        break;
+      }
     }
   }
   // prev_range holds the range at right
@@ -512,7 +712,6 @@ void find_moving_objects::Bank::getOldIndices(const float range_min,
   
   // Did we find a valid object?
   unsigned int misses = consecutive_failures_to_find_object;
-  const unsigned int width_in_points = right - left + 1;
   if (width_in_points < bank_argument.object_threshold_min_nr_points  ||
       bank_argument.object_threshold_max_delta_width_in_points < abs(width_in_points - object_width_in_points)  ||
       bank_argument.object_threshold_bank_tracking_max_delta_distance  < 
@@ -542,7 +741,7 @@ void find_moving_objects::Bank::getOldIndices(const float range_min,
   // If reaching this point, a valid object was found
   // Update end points
   *index_min_old = left;
-  *index_mean_old = (right + left) / 2;
+  *index_mean_old = (left + (width_in_points-1) / 2) % bank_argument.points_per_scan;
   *index_max_old = right;
   *range_sum_old = range_sum;
   
@@ -552,23 +751,150 @@ void find_moving_objects::Bank::getOldIndices(const float range_min,
                 width_in_points,
                 (current_level - 1) < 0 ? bank_argument.nr_scans_in_bank - 1 : current_level - 1, // wrap around
                 levels_searched + 1,
-                (right + left) / 2,
+                *index_mean_old,
                 misses,
                 threshold_consecutive_failures_to_find_object,
                 index_min_old,
                 index_mean_old,
                 index_max_old,
-                range_sum_old,
+                range_sum_old, // *range_sum_old was set to range_sum above
                 range_at_min_index_old,
                 range_at_max_index_old);
 }
 
 
+// /*
+//  * Compares consecutive found objects to see if they are to be considered the same object. If so, then a merge of them
+//  * is performed
+//  */
+// void Bank::mergeFoundObjects(MovingObjectArray * moa)
+// {
+// //   unsigned int nr_objects_found = moa->objects.size();
+//   
+//   if (1 < moa->objects.size())
+//   {
+//   
+//     MovingObject * object_1 = &moa->objects[0];
+//     MovingObject * object_2;
+//     std::vector<MovingObject> moa_merged;
+//     
+//     // Loop through objects
+//     for (unsigned int i=1; i<moa->objects.size(); ++i)
+//     {
+//       object_2 = &moa->objects[i];
+//     
+//       // Angle betweeen velocity vectors
+// //       float velocity_direction_delta = acosf((object_1->velocity.x * object_2->velocity.x +
+// //                                               object_1->velocity.y * object_2->velocity.y +
+// //                                               object_1->velocity.z * object_2->velocity.z) / 
+// //                                              (object_1->speed * object_2->speed));
+//       
+//       float velocity_direction_delta = acosf((object_1->velocity ^ object_2->velocity) / 
+//                                              (object_1->speed * object_2->speed));
+//       
+//       float gap_angle = object_2->angle_begin - object_1->angle_end;
+//       
+// //       std::cout << "Comparing objects " << i-1 << " and " << i << std::endl <<
+// //                    "  gap_angle = " << gap_angle * 180 / M_PI << std::endl <<
+// //                    "  delta_distance_at_angle_gap_ends = " << fabsf(object_2->distance_at_angle_begin - object_1->distance_at_angle_end) << std::endl <<
+// //                    "  delta_speed = " << fabsf(object_1->speed * object_2->speed) << std::endl <<
+// //                    "  velocity_direction_delta = " << std::left << std::setw(11) << velocity_direction_delta *180 / M_PI<< 
+// //                    "    " << std::left << std::setw(9) << object_1->velocity.x << "  " << std::left << std::setw(9) << object_2->velocity.x << std::endl <<
+// //                    "                                            " << std::left << std::setw(9) << object_1->velocity.y << "  " << std::left << std::setw(9) << object_2->velocity.y << std::endl <<
+// //                    "                                            " << std::left << std::setw(9) << object_1->velocity.z << "  " << std::left << std::setw(9) << object_2->velocity.z << std::endl;
+//       
+//       // Compare objects - end of object 1 <-> start of object 2, velocities
+//       if (gap_angle <= bank_argument.merge_threshold_max_angle_gap &&
+//           fabsf(object_2->distance_at_angle_begin - object_1->distance_at_angle_end) <=
+//                                                     bank_argument.merge_threshold_max_end_points_distance_delta &&
+//           velocity_direction_delta <= bank_argument.merge_threshold_max_velocity_direction_delta &&
+//           fabsf(object_1->speed - object_2->speed) <= bank_argument.merge_threshold_max_speed_delta)
+//       {
+//         std::cout << "MERGING OBJECTS:" << std::endl; // << 
+// //                      *object_1 << std::endl << 
+// //                      "---------------------------" << std::endl <<
+// //                      *object_2 << std::endl << 
+// //                      "---------------------------" << std::endl <<
+// //                      "---------------------------" << std::endl;
+//         // "Join" objects and add the new object to moa_merged
+//         MovingObject mo = *object_1;
+//         
+//         // Update properties
+//         mo.seen_width = sqrt( object_1->distance_at_angle_begin *
+//                               object_1->distance_at_angle_begin +
+//                               object_2->distance_at_angle_end *
+//                               object_2->distance_at_angle_end -
+//                               2 * object_1->distance_at_angle_begin *
+//                                   object_2->distance_at_angle_end *
+//                                   cosf (object_2->angle_end - object_1->angle_begin)
+//                             );
+//         mo.angle_end = object_2->angle_end;
+//         mo.distance_at_angle_end = object_2->distance_at_angle_end;
+//         mo.distance = (object_1->distance * 
+//                        (object_1->angle_end - object_1->angle_begin) / bank_argument.angle_increment +
+//                        object_2->distance *
+//                        (object_2->angle_end - object_2->angle_begin) / bank_argument.angle_increment) * // Range sum
+//                       bank_argument.angle_increment / (object_2->angle_end - object_1->angle_begin);
+//         
+//                       // The length of the line between objects 1 and 2
+//         float gap_width = sqrt( object_1->distance_at_angle_end *
+//                                 object_1->distance_at_angle_end +
+//                                 object_2->distance_at_angle_begin *
+//                                 object_2->distance_at_angle_begin -
+//                                 2 * object_1->distance_at_angle_end *
+//                                     object_2->distance_at_angle_begin *
+//                                     cosf (gap_angle)
+//                               );
+//         // The center point of the new object lies this far from object_2 on that line 
+//         float shift_factor = (object_1->seen_width + gap_width) / 
+//                              (object_1->seen_width + object_2->seen_width + 2 * gap_width);
+//         
+//         mo.position_in_map_frame = shift_factor * object_1->position_in_map_frame + (1 - shift_factor) * object_2->position_in_map_frame;
+//         mo.position_in_fixed_frame = shift_factor * object_1->position_in_fixed_frame + (1 - shift_factor) * object_2->position_in_fixed_frame;
+//         mo.position_in_base_frame = shift_factor * object_1->position_in_base_frame + (1 - shift_factor) * object_2->position_in_base_frame;
+//         mo.position = shift_factor * object_1->position + (1 - shift_factor) * object_2->position;
+//         mo.velocity_in_map_frame = 0.5 * (object_1->velocity_in_map_frame + object_2->velocity_in_map_frame);
+//         mo.velocity_in_fixed_frame = 0.5 * (object_1->velocity_in_fixed_frame + object_2->velocity_in_fixed_frame);
+//         mo.velocity_in_base_frame = 0.5 * (object_1->velocity_in_base_frame + object_2->velocity_in_base_frame);
+//         mo.velocity = 0.5 * (object_1->velocity + object_2->velocity);
+//         mo.speed_in_map_frame = sqrt (mo.velocity_in_map_frame ^ mo.velocity_in_map_frame);
+//         mo.speed_in_fixed_frame = sqrt (mo.velocity_in_fixed_frame ^ mo.velocity_in_fixed_frame);
+//         mo.speed_in_base_frame = sqrt (mo.velocity_in_base_frame ^ mo.velocity_in_base_frame);
+//         mo.speed = sqrt (mo.velocity ^ mo.velocity);
+//         mo.velocity_normalized_in_map_frame = mo.velocity_in_map_frame / mo.speed_in_map_frame;
+//         mo.velocity_normalized_in_fixed_frame = mo.velocity_in_fixed_frame / mo.speed_in_fixed_frame;
+//         mo.velocity_normalized_in_base_frame = mo.velocity_in_base_frame / mo.speed_in_base_frame;
+//         mo.velocity_normalized = mo.velocity / mo.speed;
+//         bool object_1_is_closest = object_1->closest_distance < object_2->closest_distance;
+//         mo.closest_point_in_map_frame = object_1_is_closest ? object_1->closest_point_in_map_frame : object_2->closest_point_in_map_frame;
+//         mo.closest_point_in_fixed_frame = object_1_is_closest ? object_1->closest_point_in_fixed_frame : object_2->closest_point_in_fixed_frame;
+//         mo.closest_point_in_base_frame = object_1_is_closest ? object_1->closest_point_in_base_frame : object_2->closest_point_in_base_frame;
+//         mo.closest_point = object_1_is_closest ? object_1->closest_point : object_2->closest_point;
+//         mo.closest_distance = object_1_is_closest ? object_1->closest_distance : object_2->closest_distance;
+//         mo.angle_for_closest_distance = object_1_is_closest ? object_1->angle_for_closest_distance : object_2->angle_for_closest_distance;
+//         mo.confidence = object_1->confidence < object_2->confidence ? object_2->confidence : object_1->confidence;
+//         
+//         // Manipulate moa, object_1 and i
+//         moa->objects.at(i-1) = mo;
+//         moa->objects.erase(moa->objects.begin()+i);
+//         object_1 = &moa->objects[i-1];
+//         i--; // Also updated in loop, we want to redo current i
+//       }
+//       else
+//       {
+//         // Go to next two objects
+//         object_1 = object_2;
+//       }
+//     }
+//     
+//     // TODO: Wrap around if 360 degree sensor
+//   }
+// }
+
 /*
- * Find and report moving objects based on the current content of
- * the bank
+ * Find and report moving objects based on the current content of the bank
  */
-void find_moving_objects::Bank::findAndReportMovingObjects()
+void Bank::findAndReportMovingObjects()
 {
   // Is the bank filled with scans?
   if (!bank_is_filled)
@@ -578,10 +904,10 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
   }
   
   // Moving object array message
-  find_moving_objects::MovingObjectArray moa;
+  MovingObjectArray moa;
   
   // Old positions of the objects in moa
-  find_moving_objects::MovingObjectArray moa_old_positions;
+  MovingObjectArray moa_old_positions;
   
   /* Find objects in the new scans */
   unsigned int nr_objects_found = 0;
@@ -590,7 +916,10 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
                            bank_argument.range_max : bank_argument.object_threshold_max_distance);
   const float range_min = bank_argument.range_min;
   unsigned int i=0;
-  while(i<bank_argument.points_per_scan)
+  
+  // Handle 360 degrees sensors!
+  unsigned int upper_limit_out_of_bounds_scan_point = bank_argument.points_per_scan;
+  while(i<upper_limit_out_of_bounds_scan_point)
   {
     /* Find first valid scan from where we currently are */
     const float range_i = bank_ranges_ema[bank_index_newest][i];
@@ -612,8 +941,14 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
     unsigned int object_range_max_index = i;
     
     // Count valid scans that are within the object threshold
+    
+    float range_at_angle_begin = range_i; // Might be updated later
+    float range_at_angle_end;             // Updated later
+    unsigned int index_at_angle_begin = i; // Might be updated later
+    unsigned int index_at_angle_end;       // Updated later
     float prev_range = range_i;
-    for (unsigned int j=i+1; j<bank_argument.points_per_scan; ++j)
+    unsigned int j=i+1;
+    for (; j<bank_argument.points_per_scan; ++j)
     {
       const float range_j = bank_ranges_ema[bank_index_newest][j];
       
@@ -625,6 +960,8 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
         // j is part of the current object
         nr_object_points++;
         object_range_sum += range_j;
+        
+        // Update min and max ranges
         if (range_j < object_range_min) 
         {
           object_range_min = range_j;
@@ -644,14 +981,67 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
       }
     }
     
+    // Update range at end
+    range_at_angle_end = prev_range;
+    index_at_angle_end = j-1; // j is not part of the object
+    
+    // If i is 0 and sensor is 360 deg, then we must also search higher end of scan points and account for these
+    if (i == 0 && bank_argument.sensor_is_360_degrees)
+    {
+      // Start from i again
+      prev_range = range_i;
+      //Save prev_range so we can restore it?
+      
+      // Do not step all the way to j again - it has already been considered
+      for (unsigned int k=bank_argument.points_per_scan-1; j<k; k--)
+      {
+        const float range_k = bank_ranges_ema[bank_index_newest][k];
+        
+        // Range check
+        if (bank_argument.range_min <= range_k  &&
+            range_k <= bank_argument.range_max  &&
+            fabsf(prev_range - range_k) <= bank_argument.object_threshold_edge_max_delta_range)
+        {
+          // k is part of the current object
+          nr_object_points++;
+          object_range_sum += range_k;
+          
+          // Adapt the loop upper limit
+          upper_limit_out_of_bounds_scan_point--;
+          
+          // Update min and max ranges
+          if (range_k < object_range_min) 
+          {
+            object_range_min = range_k;
+            object_range_min_index = k;
+          }
+          else if (object_range_max < range_k) 
+          {
+            object_range_max = range_k;
+            object_range_max_index = k;
+          }
+          prev_range = range_k;
+        }
+        else
+        {
+          // k is not part of this object
+          break;
+        }
+      }
+      
+      // Update range at begin; it might not be range_i anymore
+      range_at_angle_begin = prev_range;
+      index_at_angle_begin = upper_limit_out_of_bounds_scan_point;
+    }
+    
     /* Evaluate the found object (it consists of at least the ith scan) */
     const float distance = object_range_sum / nr_object_points; // Average distance
-    const float object_seen_width = sqrt( bank_ranges_ema[bank_index_newest][i] * 
-                                          bank_ranges_ema[bank_index_newest][i] +
-                                          bank_ranges_ema[bank_index_newest][i+nr_object_points-1] * 
-                                          bank_ranges_ema[bank_index_newest][i+nr_object_points-1] -
-                                          2 * bank_ranges_ema[bank_index_newest][i] * 
-                                              bank_ranges_ema[bank_index_newest][i+nr_object_points-1] * 
+    const float object_seen_width = sqrt( range_at_angle_begin * 
+                                          range_at_angle_begin + 
+                                          range_at_angle_end * 
+                                          range_at_angle_end - 
+                                          2 * range_at_angle_begin * 
+                                              range_at_angle_end * 
                                               cosf (bank_argument.angle_increment * nr_object_points)
                                           ); // This is the seen object width using the law of cosine
     
@@ -663,9 +1053,10 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
       
       // Recursively derive the min, mean and max indices and the sum of all ranges of the object (if found) 
       // in the oldest scans in the bank
-      const unsigned int index_min = i;
-      const unsigned int index_max = i + nr_object_points - 1;
-      const unsigned int index_mean = (index_min + index_max) / 2;
+      const unsigned int index_min = index_at_angle_begin;
+      const unsigned int index_max = index_at_angle_end;
+      const unsigned int index_mean = (index_min + (nr_object_points-1) / 2) % bank_argument.points_per_scan;
+                                      // Accounts for 360 deg sensor => i==0 could mean that index_max < index_min
       int index_min_old = -1;
       int index_mean_old = -1;
       int index_max_old = -1;
@@ -674,7 +1065,7 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
       float range_at_max_index_old = 0;
       getOldIndices(range_min,
                     range_max,
-                    index_max - index_min + 1,
+                    nr_object_points,
                     (bank_index_newest - 1) < 0 ? bank_argument.nr_scans_in_bank - 1 : bank_index_newest - 1,
                     1, // levels searched
                     index_mean,
@@ -692,8 +1083,8 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
       {
         // YES!
         // Create a Moving Object
-        find_moving_objects::MovingObject mo;
-        find_moving_objects::MovingObject mo_old_positions;
+        MovingObject mo;
+        MovingObject mo_old_positions;
         
         // Set the expected information
         mo.map_frame = bank_argument.map_frame;
@@ -705,49 +1096,93 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
         mo.seen_width = object_seen_width;
         mo.angle_begin = index_min * bank_argument.angle_increment + bank_argument.angle_min;
         mo.angle_end   = index_max * bank_argument.angle_increment + bank_argument.angle_min;
-        const float angle_mean = (mo.angle_begin + mo.angle_end) / 2.0f;
-        mo.distance_at_angle_begin = range_i;
-        mo.distance_at_angle_end   = prev_range;
+        const float angle_mean = index_mean * bank_argument.angle_increment + bank_argument.angle_min;
+        mo.distance_at_angle_begin = range_at_angle_begin;
+        mo.distance_at_angle_end   = range_at_angle_end;
         // Position is dependent on the distance and angle_mean
         // Reference coordinate system (relation to the Lidar):
         //   x: forward
         //   y: left
         //   z: up        
         mo.distance = distance;
-        mo.position.x = (double) distance * cosf(angle_mean);
-        mo.position.y = (double) distance * sinf(angle_mean);
-        mo.position.z = 0.0;
+        
+        // Optical frame?
+        if (bank_argument.sensor_frame_has_z_axis_forward)
+        {
+          // Yes, Z-axis forward, X-axis right, Y-axis down
+          mo.position.x = (double) - distance * sinf(angle_mean);
+          mo.position.y = 0.0;
+          mo.position.z = (double) distance * cosf(angle_mean);
+        }
+        else
+        {
+          // No, X-axis forward, Y-axis left, Z-axis up
+          mo.position.x = (double) distance * cosf(angle_mean);
+          mo.position.y = (double) distance * sinf(angle_mean);
+          mo.position.z = 0.0;
+        }
+        
+        // This will be negated rotation around the Y-axis in the case of an optical frame!
         mo.angle_for_closest_distance = object_range_min_index * bank_argument.angle_increment + 
                                         bank_argument.angle_min;
         mo.closest_distance = object_range_min;
-        mo.closest_point.x = object_range_min * cosf(mo.angle_for_closest_distance);
-        mo.closest_point.y = object_range_min * sinf(mo.angle_for_closest_distance);
-        mo.closest_point.z = 0.0;
         
+        // Optical frame?
+        if (bank_argument.sensor_frame_has_z_axis_forward)
+        {
+          // Yes, Z-axis forward, X-axis right, Y-axis down
+          mo.closest_point.x = - object_range_min * sinf(mo.angle_for_closest_distance);
+          mo.closest_point.y = 0.0;
+          mo.closest_point.z = object_range_min * cosf(mo.angle_for_closest_distance);
+        }
+        else
+        {
+          // No, X-axis forward, Y-axis left, Z-axis up
+          mo.closest_point.x = object_range_min * cosf(mo.angle_for_closest_distance);
+          mo.closest_point.y = object_range_min * sinf(mo.angle_for_closest_distance);
+          mo.closest_point.z = 0.0;
+        }
         
         // Distance from sensor to object at old time
-        const float distance_old = range_sum_old / (index_max_old - index_min_old + 1);
+        const unsigned int nr_object_points_old = (index_min_old <= index_max_old) ? 
+                                                  (index_max_old - index_min_old + 1) :
+                                                  bank_argument.points_per_scan - (index_min_old - index_max_old) + 1;
+        const float distance_old = range_sum_old / nr_object_points_old;
         // distance is found at index_mean_old, this is the angle at which distance is found
         const float distance_angle_old = index_mean_old * bank_argument.angle_increment + bank_argument.angle_min;
         // Covered angle
-        const float covered_angle_old = (index_max_old - index_min_old + 1) * bank_argument.angle_increment;
+        const float covered_angle_old = nr_object_points_old * bank_argument.angle_increment;
         // Width of old object
-        const float object_seen_width_old = sqrt( bank_ranges_ema[bank_index_put][index_min_old] * 
-                                                  bank_ranges_ema[bank_index_put][index_min_old] +
-                                                  bank_ranges_ema[bank_index_put][index_max_old] * 
-                                                  bank_ranges_ema[bank_index_put][index_max_old] -
-                                                  2 * bank_ranges_ema[bank_index_put][index_min_old] * 
-                                                  bank_ranges_ema[bank_index_put][index_max_old] * 
-                                                  cosf (covered_angle_old)
+        const float object_seen_width_old = sqrt( range_at_min_index_old * 
+                                                  range_at_min_index_old + 
+                                                  range_at_max_index_old * 
+                                                  range_at_max_index_old - 
+                                                  2 * range_at_min_index_old * 
+                                                      range_at_max_index_old * 
+                                                      cosf (covered_angle_old)
                                                 ); // This is the seen object width using the law of cosine
         // Coordinates at old time
-        const float x_old = distance_old * cosf(distance_angle_old);
-        const float y_old = distance_old * sinf(distance_angle_old);
-        const float z_old = 0.0;
+        float x_old;
+        float y_old;
+        float z_old;
+        
+        if (bank_argument.sensor_frame_has_z_axis_forward)
+        {
+          // Yes, Z-axis forward, X-axis right, Y-axis down
+          x_old = - distance_old * sinf(distance_angle_old);
+          y_old = 0.0;
+          z_old = distance_old * cosf(distance_angle_old);
+        }
+        else
+        {
+          x_old = distance_old * cosf(distance_angle_old);
+          y_old = distance_old * sinf(distance_angle_old);
+          z_old = 0.0;
+        }
         
         mo_old_positions.position.x = x_old;
-        mo_old_positions.position.x = y_old;
-        mo_old_positions.position.x = z_old;
+        mo_old_positions.position.y = y_old;
+        mo_old_positions.position.z = z_old;
         
         // Lookup transformation from old position of sensor_frame to new location of sensor_frame
         bool transform_old_time_map_frame_success = true;
@@ -781,7 +1216,8 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
           }
           else
           {
-            ROS_ERROR("Cannot determine transform to map frame at old time %f.", bank_stamp[bank_index_put]);
+            ROS_ERROR("Cannot determine transform from %s to %s at old time %f.", bank_argument.sensor_frame.c_str(), \
+                      bank_argument.map_frame.c_str(), bank_stamp[bank_index_put]);
           }
         }
         catch (tf::TransformException ex)
@@ -807,7 +1243,8 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
           }
           else
           {
-            ROS_ERROR("Cannot determine transform to map frame at new time %f.", bank_stamp[bank_index_newest]);
+            ROS_ERROR("Cannot determine transform from %s to %s at new time %f.", bank_argument.sensor_frame.c_str(), \
+                      bank_argument.map_frame.c_str(), bank_stamp[bank_index_newest]);
           }
         }
         catch (tf::TransformException ex)
@@ -834,7 +1271,8 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
           }
           else
           {
-            ROS_ERROR("Cannot determine transform to fixed frame at old time %f.", bank_stamp[bank_index_put]);
+            ROS_ERROR("Cannot determine transform from %s to %s at old time %f.", bank_argument.sensor_frame.c_str(), \
+                      bank_argument.fixed_frame.c_str(), bank_stamp[bank_index_put]);
           }
         }
         catch (tf::TransformException ex)
@@ -860,7 +1298,8 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
           }
           else
           {
-            ROS_ERROR("Cannot determine transform to fixed frame at new time %f.", bank_stamp[bank_index_newest]);
+            ROS_ERROR("Cannot determine transform from %s to %s at new time %f.", bank_argument.sensor_frame.c_str(), \
+                      bank_argument.fixed_frame.c_str(), bank_stamp[bank_index_newest]);
           }
         }
         catch (tf::TransformException ex)
@@ -887,7 +1326,8 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
           }
           else
           {
-            ROS_ERROR("Cannot determine transform to base frame at old time %f.", bank_stamp[bank_index_put]);
+            ROS_ERROR("Cannot determine transform from %s to %s at old time %f.", bank_argument.sensor_frame.c_str(), \
+                      bank_argument.base_frame.c_str(), bank_stamp[bank_index_put]);
           }
         }
         catch (tf::TransformException ex)
@@ -913,7 +1353,8 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
           }
           else
           {
-            ROS_ERROR("Cannot determine transform to base frame at new time %f.", bank_stamp[bank_index_newest]);
+            ROS_ERROR("Cannot determine transform from %s to %s at new time %f.", bank_argument.sensor_frame.c_str(), 
+                      bank_argument.base_frame.c_str(), bank_stamp[bank_index_newest]);
           }
         }
         catch (tf::TransformException ex)
@@ -923,13 +1364,13 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
         }
         
         // Coordinates translated
-        tf::Stamped<tf::Point> old_point(tf::Point(x_old, y_old, 0.0), 
+        tf::Stamped<tf::Point> old_point(tf::Point(x_old, y_old, z_old), 
                                          ros::Time(bank_stamp[bank_index_put]), 
                                          bank_argument.sensor_frame);
-        tf::Stamped<tf::Point> new_point(tf::Point(mo.position.x, mo.position.y, 0.0), 
+        tf::Stamped<tf::Point> new_point(tf::Point(mo.position.x, mo.position.y, mo.position.z), 
                                          ros::Time(bank_stamp[bank_index_newest]), 
                                          bank_argument.sensor_frame);
-        tf::Stamped<tf::Point> closest_point(tf::Point(mo.closest_point.x, mo.closest_point.y, 0.0), 
+        tf::Stamped<tf::Point> closest_point(tf::Point(mo.closest_point.x, mo.closest_point.y, mo.closest_point.z), 
                                              ros::Time(bank_stamp[bank_index_newest]), 
                                              bank_argument.sensor_frame);
         tf::Point old_point_in_map_frame;
@@ -1177,8 +1618,8 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
                                               transform_old_time_base_frame_success,
                                               transform_new_time_base_frame_success);
           // Bound the value to [0,1]
-          mo.confidence = (mo.confidence < 0.0 ? 0.0 : mo.confidence);
-          mo.confidence = (mo.confidence < 1.0 ? mo.confidence : 1.0);
+          mo.confidence = (mo.confidence < 0.0  ?  0.0  :  mo.confidence);
+          mo.confidence = (mo.confidence < 1.0  ?  mo.confidence  :  1.0);
           
           // Are we confident enough to report this object?
           if (bank_argument.object_threshold_min_confidence <= mo.confidence)
@@ -1186,9 +1627,27 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
             // Adapt EMA message intensities
             if (bank_argument.publish_ema)
             {
-              for (unsigned int k=index_min; k<=index_max; ++k)
+              // Are we avoiding wrapping around the bank edges?
+              if (index_min <= index_max)
               {
-                msg_ema.intensities[k] = 300.0f;
+                // YES
+                for (unsigned int k=index_min; k<=index_max; ++k)
+                {
+                  msg_ema.intensities[k] = 300.0f;
+                }
+              }
+              else
+              {
+                // NO - we are wrapping around
+                // index_max < index_min
+                for (unsigned int k=index_min; k<bank_argument.points_per_scan; ++k)
+                {
+                  msg_ema.intensities[k] = 300.0f;
+                }
+                for (unsigned int k=0; k<index_max; ++k)
+                {
+                  msg_ema.intensities[k] = 300.0f;
+                }
               }
             }
             
@@ -1200,10 +1659,12 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
       }
     }
     
-    // Update i etc
-    i += nr_object_points;
+    i = index_at_angle_end + 1;
     nr_object_points = 0;
   }
+  
+  // Filter found objects
+//   mergeFoundObjects(&moa);
   
   // Moving object array message
   ++moa_seq;
@@ -1230,7 +1691,7 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
     pub_ema.publish(msg_ema);
   }
   
-  // Update headers of the marker, arrow and delta position messages
+  // Update headers of the marker, arrow, delta position and width messages
   if (bank_argument.publish_objects_closest_point_markers)
   {
     msg_objects_closest_point_markers.header.stamp = now;
@@ -1246,10 +1707,15 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
     msg_objects_delta_position_line.header.stamp = now;
     msg_objects_delta_position_line.header.seq = moa_seq;
   }
+  if (bank_argument.publish_objects_width_lines)
+  {
+    msg_objects_width_line.header.stamp = now;
+    msg_objects_width_line.header.seq = moa_seq;
+  }
   
   // Go through found objects
-  find_moving_objects::MovingObject * mo;
-  find_moving_objects::MovingObject * mo_old_positions;
+  MovingObject * mo;
+  MovingObject * mo_old_positions;
   const unsigned int nr_moving_objects_found = moa.objects.size();
   for (unsigned int i=0; i<nr_moving_objects_found; ++i)
   {
@@ -1339,53 +1805,50 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
     if (bank_argument.publish_objects_delta_position_lines)
     {
       msg_objects_delta_position_line.id = i;
-      if (bank_argument.delta_position_lines_use_sensor_frame)
+
+      // Copy line end points
+      msg_objects_delta_position_line.points[0].x = mo_old_positions->position.x;
+      msg_objects_delta_position_line.points[0].y = mo_old_positions->position.y;
+      msg_objects_delta_position_line.points[0].z = mo_old_positions->position.z;
+      msg_objects_delta_position_line.points[1].x = mo->position.x;
+      msg_objects_delta_position_line.points[1].y = mo->position.y;
+      msg_objects_delta_position_line.points[1].z = mo->position.z;
+
+      // Add to array of markers
+      msg_objects_delta_position_lines.markers.push_back(msg_objects_delta_position_line);
+    }
+    
+    // Visualization Marker (width)
+    if (bank_argument.publish_objects_width_lines)
+    {
+      msg_objects_width_line.id = i;
+
+      // Calculate line end points
+      if (!bank_argument.sensor_frame_has_z_axis_forward)
       {
-        // Origin: (the size of points is 2)
-        msg_objects_delta_position_line.points[0].x = mo_old_positions->position.x;
-        msg_objects_delta_position_line.points[0].y = mo_old_positions->position.y;
-        msg_objects_delta_position_line.points[0].z = mo_old_positions->position.z;
-        // End:
-        msg_objects_delta_position_line.points[1].x = mo->position.x;
-        msg_objects_delta_position_line.points[1].y = mo->position.y;
-        msg_objects_delta_position_line.points[1].z = mo->position.z;
-      }
-      else if (bank_argument.delta_position_lines_use_base_frame)
-      {
-        // Origin (the size of points is 2)
-        msg_objects_delta_position_line.points[0].x = mo_old_positions->position_in_base_frame.x;
-        msg_objects_delta_position_line.points[0].y = mo_old_positions->position_in_base_frame.y;
-        msg_objects_delta_position_line.points[0].z = mo_old_positions->position_in_base_frame.z;
-        // End:
-        msg_objects_delta_position_line.points[1].x = mo->position_in_base_frame.x;
-        msg_objects_delta_position_line.points[1].y = mo->position_in_base_frame.y;
-        msg_objects_delta_position_line.points[1].z = mo->position_in_base_frame.z;
-      }
-      else if (bank_argument.delta_position_lines_use_fixed_frame)
-      {
-        // Origin (the size of points is 2)
-        msg_objects_delta_position_line.points[0].x = mo_old_positions->position_in_fixed_frame.x;
-        msg_objects_delta_position_line.points[0].y = mo_old_positions->position_in_fixed_frame.y;
-        msg_objects_delta_position_line.points[0].z = mo_old_positions->position_in_fixed_frame.z;
-        // End:
-        msg_objects_delta_position_line.points[1].x = mo->position_in_fixed_frame.x;
-        msg_objects_delta_position_line.points[1].y = mo->position_in_fixed_frame.y;
-        msg_objects_delta_position_line.points[1].z = mo->position_in_fixed_frame.z;
+        // angle_min
+        msg_objects_width_line.points[0].x = mo->distance_at_angle_begin * cosf(mo->angle_begin);
+        msg_objects_width_line.points[0].y = mo->distance_at_angle_begin * sinf(mo->angle_begin);
+        msg_objects_width_line.points[0].z = 0.0;
+        // angle_max
+        msg_objects_width_line.points[1].x = mo->distance_at_angle_end * cosf(mo->angle_end);
+        msg_objects_width_line.points[1].y = mo->distance_at_angle_end * sinf(mo->angle_end);
+        msg_objects_width_line.points[1].z = 0.0;
       }
       else
       {
-        // Origin (the size of points is 2)
-        msg_objects_delta_position_line.points[0].x = mo_old_positions->position_in_map_frame.x;
-        msg_objects_delta_position_line.points[0].y = mo_old_positions->position_in_map_frame.y;
-        msg_objects_delta_position_line.points[0].z = mo_old_positions->position_in_map_frame.z;
-        // End:
-        msg_objects_delta_position_line.points[1].x = mo->position_in_map_frame.x;
-        msg_objects_delta_position_line.points[1].y = mo->position_in_map_frame.y;
-        msg_objects_delta_position_line.points[1].z = mo->position_in_map_frame.z;
+        // angle_min
+        msg_objects_width_line.points[0].x = -mo->distance_at_angle_begin * sinf(mo->angle_begin);
+        msg_objects_width_line.points[0].y = 0.0;
+        msg_objects_width_line.points[0].z = mo->distance_at_angle_begin * cosf(mo->angle_begin);
+        // angle_max
+        msg_objects_width_line.points[1].x = -mo->distance_at_angle_end * sinf(mo->angle_end);
+        msg_objects_width_line.points[1].y = 0.0;
+        msg_objects_width_line.points[1].z = mo->distance_at_angle_end * cosf(mo->angle_end);
       }
       
       // Add to array of markers
-      msg_objects_delta_position_lines.markers.push_back(msg_objects_delta_position_line);
+      msg_objects_width_lines.markers.push_back(msg_objects_width_line);
     }
   }
   
@@ -1405,6 +1868,12 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
   if (bank_argument.publish_objects_delta_position_lines)
   {
     pub_objects_delta_position_lines.publish(msg_objects_delta_position_lines);
+  }
+  
+  // Dito
+  if (bank_argument.publish_objects_width_lines)
+  {
+    pub_objects_width_lines.publish(msg_objects_width_lines);
   }
   
   // Reset range and intensity of markers and delete found objects
@@ -1427,6 +1896,10 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
   {
     msg_objects_delta_position_lines.markers.clear();
   }
+  if (bank_argument.publish_objects_width_lines)
+  {
+    msg_objects_width_lines.markers.clear();
+  }
   if (bank_argument.publish_ema)
   {
     bzero(msg_ema.intensities.data(), bank_ranges_bytes);
@@ -1435,7 +1908,7 @@ void find_moving_objects::Bank::findAndReportMovingObjects()
 
 
 /* HANDLING ENDIANNESS */
-void find_moving_objects::Bank::reverseBytes(byte_t * bytes, unsigned int nr_bytes)
+void Bank::reverseBytes(byte_t * bytes, unsigned int nr_bytes)
 {
   const unsigned int half_way = nr_bytes/2;
   for (unsigned int i=0; i<half_way; ++i)
@@ -1450,7 +1923,7 @@ void find_moving_objects::Bank::reverseBytes(byte_t * bytes, unsigned int nr_byt
 /*
  * Read offsets and nr of bytes from PointCloud2 message
  */
-int find_moving_objects::Bank::getOffsetsAndBytes(BankArgument bank_argument, sensor_msgs::PointCloud2::ConstPtr msg)
+int Bank::getOffsetsAndBytes(BankArgument bank_argument, sensor_msgs::PointCloud2::ConstPtr msg)
 {
   PC2_message_x_offset = -1;
   PC2_message_x_bytes = -1;
@@ -1604,7 +2077,7 @@ int find_moving_objects::Bank::getOffsetsAndBytes(BankArgument bank_argument, se
 
 
 /* DATA POINT HANDLING */
-void find_moving_objects::Bank::readPoint(const byte_t * start_of_point,
+void Bank::readPoint(const byte_t * start_of_point,
                       const bool must_reverse_bytes,
                       double * x,
                       double * y,
@@ -1679,7 +2152,7 @@ void find_moving_objects::Bank::readPoint(const byte_t * start_of_point,
 
 /* BANK HANDLING */
 // Resets the range bank[i] for each i to a value that is larger than the largest allowed (threshold_distance_max)
-void find_moving_objects::Bank::resetPutPoints()
+void Bank::resetPutPoints()
 {
   const double range = bank_argument.object_threshold_max_distance + 10.0;
   float * bank_put = bank_ranges_ema[bank_index_put];
@@ -1695,7 +2168,7 @@ void find_moving_objects::Bank::resetPutPoints()
 // Reads all points from msg and puts them at bank[i] such that i corresponds to the angle at which 
 // the point is found in the x,y plane of the sensor.
 // Tries to fill several i for one and the same point if needed based on the voxel leaf size.
-unsigned int find_moving_objects::Bank::putPoints(const sensor_msgs::PointCloud2::ConstPtr msg)
+unsigned int Bank::putPoints(const sensor_msgs::PointCloud2::ConstPtr msg)
 {
   const bool must_reverse_bytes = (msg->is_bigendian != !machine_is_little_endian);
   float * bank_put = bank_ranges_ema[bank_index_put];
@@ -1726,19 +2199,48 @@ unsigned int find_moving_objects::Bank::putPoints(const sensor_msgs::PointCloud2
                 &z);
       
       // Is this point outside the considered volume?
-      if (z < bank_argument.PC2_threshold_z_min || 
-          bank_argument.PC2_threshold_z_max < z) 
+      if (!bank_argument.sensor_frame_has_z_axis_forward)
       {
-        continue;
+        // Assume Z-axis is pointing up
+        if (z < bank_argument.PC2_threshold_z_min || 
+            bank_argument.PC2_threshold_z_max < z ||
+            x < 0.02) 
+        {
+          continue;
+        }
+      }
+      else
+      {
+        // Assume Y-axis is pointing down
+        if (-y < bank_argument.PC2_threshold_z_min || 
+            bank_argument.PC2_threshold_z_max < -y ||
+            z < 0.02) 
+        {
+          continue;
+        }
       }
       
       // Another valid point
       added_points_out = added_points_out + 1;
       
       // Calculate index (indices) of point in bank
-      const double range = sqrt(x*x + y*y + z*z);
-      const double point_angle_min = atan((y - voxel_leaf_size_half) / x);
-      const double point_angle_max = atan((y + voxel_leaf_size_half) / x);
+      const double range = sqrt(x*x + y*y + z*z); // TODO?
+      double point_angle_min;
+      double point_angle_max;
+      if (!bank_argument.sensor_frame_has_z_axis_forward)
+      {
+        // Assume Z-axis is pointing up
+        point_angle_min = atan((y - voxel_leaf_size_half) / x);
+        point_angle_max = atan((y + voxel_leaf_size_half) / x);
+      }
+      else
+      {
+        // Assume Y-axis is pointing down
+        point_angle_min = atan((-x - voxel_leaf_size_half) / z);
+        point_angle_max = atan((-x + voxel_leaf_size_half) / z);
+      }
+
+      
       const int bank_index_point_min = 
         (0 > (point_angle_min + bank_view_angle_half) * inverted_bank_resolution ?
         0: // MAX of 0 and next row
@@ -1770,7 +2272,7 @@ unsigned int find_moving_objects::Bank::putPoints(const sensor_msgs::PointCloud2
 // Assumes that bank[bank_index_put] is filled with ranges from a new message 
 // (i.e. that indices have not yet been updated).
 // These values are EMA-adapted based on the previous set of EMA-adapted values at bank[index_previous]
-void find_moving_objects::Bank::emaPutMessage()
+void Bank::emaPutMessage()
 {
   const double alpha = bank_argument.ema_alpha;
   
@@ -1791,7 +2293,7 @@ void find_moving_objects::Bank::emaPutMessage()
 
 
 // Debug/print bank column/msg
-std::string find_moving_objects::Bank::getStringPutPoints()
+std::string Bank::getStringPutPoints()
 {
   float * bank_put = bank_ranges_ema[bank_index_put];  
   std::ostringstream stream;
@@ -1807,7 +2309,7 @@ std::string find_moving_objects::Bank::getStringPutPoints()
 
 
 // Init indices
-inline void find_moving_objects::Bank::initIndex()
+inline void Bank::initIndex()
 {
   bank_index_put = 1;
   bank_index_newest = 0;
@@ -1815,7 +2317,7 @@ inline void find_moving_objects::Bank::initIndex()
 
 
 // Advance indices
-inline void find_moving_objects::Bank::advanceIndex()
+inline void Bank::advanceIndex()
 {
   bank_index_put = (bank_index_put + 1) % bank_argument.nr_scans_in_bank; // points to the oldest message
   bank_index_newest = (bank_index_newest + 1) % bank_argument.nr_scans_in_bank; // points to the newest/this message
@@ -1823,8 +2325,19 @@ inline void find_moving_objects::Bank::advanceIndex()
 
 
 // Init bank based on LaserScan msg
-long find_moving_objects::Bank::init(BankArgument bank_argument, sensor_msgs::LaserScan::ConstPtr msg)
+long Bank::init(BankArgument bank_argument, sensor_msgs::LaserScan::ConstPtr msg)
 {
+  if (!bank_argument.sensor_frame_has_z_axis_forward && strstr(msg->header.frame_id.c_str(), "_optical") != NULL)
+  {
+    ROS_WARN_STREAM("The sensor frame (" << msg->header.frame_id.c_str() << ") seems to be a camera/optical frame. "
+                    "Perhaps sensor_frame_has_z_axis_forward should be set?");
+  }
+  else if (bank_argument.sensor_frame_has_z_axis_forward)
+  {
+    ROS_WARN_STREAM("Please note that setting sensor_frame_has_z_axis_forward will cause the ema and "
+                    "objects_closest_points messages to be shown incorrectly.");
+  }
+  
   bank_argument.sensor_frame    = msg->header.frame_id;
   bank_argument.points_per_scan = msg->ranges.size();
   bank_argument.angle_min       = msg->angle_min;
@@ -1837,40 +2350,99 @@ long find_moving_objects::Bank::init(BankArgument bank_argument, sensor_msgs::La
   resolution                    = bank_argument.angle_increment;
   
   initBank(bank_argument);
+  
+  ROS_DEBUG_STREAM("Bank arguments:" << std::endl << bank_argument);
+  
   return addFirstMessage(msg);
 }
 
 
 // Add FIRST LaserScan message to bank - no ema
-long find_moving_objects::Bank::addFirstMessage(sensor_msgs::LaserScan::ConstPtr msg)
+long Bank::addFirstMessage(sensor_msgs::LaserScan::ConstPtr msg)
 {
   bank_stamp[0] = msg->header.stamp.toSec();
-  memcpy(&bank_ranges_ema[0][0], msg->ranges.data(), bank_ranges_bytes);
+  
+//   if (bank_argument.ema_alpha != 1.0)
+//   {
+    float * bank_put = bank_ranges_ema[0];
+    for (unsigned int i=0; i<bank_argument.points_per_scan; ++i)
+    {
+      if (msg->ranges[i] == std::numeric_limits<float>::infinity())
+      {
+        bank_put[i] = bank_argument.range_max + 0.01;
+      }
+      else if (msg->ranges[i] == -std::numeric_limits<float>::infinity())
+      {
+        bank_put[i] = bank_argument.range_min - 0.01;
+      }
+      else if (msg->ranges[i] != msg->ranges[i])
+      {
+        // The range is NaN
+        bank_put[i] = bank_argument.range_max + 0.01;
+      }
+      else
+      {
+        // Turn infinity into large value
+        bank_put[i] = msg->ranges[i];
+      }
+    }
+//   }
+//   else
+//   {
+//     memcpy(&bank_ranges_ema[0][0], msg->ranges.data(), bank_ranges_bytes);
+//   }
+  
   initIndex(); // set put to 1 and newest to 0
   bank_is_filled = false;
+  
+  ROS_DEBUG_STREAM("First message (LaserScan):" << std::endl << *msg);
   
   return 0;
 }
 
 
 // Add LaserScan message and perform EMA
-long find_moving_objects::Bank::addMessage(sensor_msgs::LaserScan::ConstPtr msg)
+long Bank::addMessage(sensor_msgs::LaserScan::ConstPtr msg)
 {
   // Save timestamp
   bank_stamp[bank_index_put] = msg->header.stamp.toSec();
   
-  // Save EMA of ranges
+  // Save EMA of ranges, if applicable, otherwise, perform memcpy
   const double alpha = bank_argument.ema_alpha;
-  const double alpha_prev = 1 - bank_argument.ema_alpha;
-  float * bank_put = bank_ranges_ema[bank_index_put];
-  float * bank_newest = bank_ranges_ema[bank_index_newest];
-  for (unsigned int i=0; i<bank_argument.points_per_scan; ++i)
-  {
-    bank_put[i] = alpha * msg->ranges[i]  +  alpha_prev * bank_newest[i];
-  }
+//   if (alpha != 1.0)
+//   {
+    const double alpha_prev = 1.0 - bank_argument.ema_alpha;
+    float * bank_put = bank_ranges_ema[bank_index_put];
+    float * bank_newest = bank_ranges_ema[bank_index_newest];
+    for (unsigned int i=0; i<bank_argument.points_per_scan; ++i)
+    {
+      if (msg->ranges[i] == std::numeric_limits<float>::infinity())
+      {
+        bank_put[i] = bank_argument.range_max + 0.01;
+      }
+      else if (msg->ranges[i] == -std::numeric_limits<float>::infinity())
+      {
+        bank_put[i] = bank_argument.range_min - 0.01;
+      }
+      else if (msg->ranges[i] != msg->ranges[i])
+      {
+        // The range is NaN
+        bank_put[i] = bank_argument.range_max + 0.01;
+      }
+      else
+      {
+        // Turn infinity into large value
+        bank_put[i] = alpha * msg->ranges[i]  +  alpha_prev * bank_newest[i];
+      }
+    }
+//   }
+//   else
+//   {
+//     memcpy(&bank_ranges_ema[bank_index_put][0], msg->ranges.data(), bank_ranges_bytes);
+//   }
   
   advanceIndex();
-  if (bank_index_put < bank_index_newest)
+  if (!bank_is_filled && bank_index_put < bank_index_newest)
   {
     bank_is_filled = true;
   }
@@ -1880,9 +2452,20 @@ long find_moving_objects::Bank::addMessage(sensor_msgs::LaserScan::ConstPtr msg)
 
 
 // Init bank based on PointCloud2 msg
-long find_moving_objects::Bank::init(BankArgument bank_argument, sensor_msgs::PointCloud2::ConstPtr msg)
+long Bank::init(BankArgument bank_argument, sensor_msgs::PointCloud2::ConstPtr msg)
 {
+  ROS_DEBUG("Init bank (%s)", msg->header.frame_id.c_str());
   bank_argument.sensor_frame = msg->header.frame_id;
+  if (!bank_argument.sensor_frame_has_z_axis_forward && strstr(msg->header.frame_id.c_str(), "_optical") != NULL)
+  {
+    ROS_WARN_STREAM("The sensor frame (" << msg->header.frame_id.c_str() << ") seems to be a camera/optical frame. "
+                    "Perhaps sensor_frame_has_z_axis_forward should be set?");
+  }
+  else if (bank_argument.sensor_frame_has_z_axis_forward)
+  {
+    ROS_WARN_STREAM("Please note that setting sensor_frame_has_z_axis_forward will cause the ema and "
+                    "objects_closest_points messages to be shown incorrectly.");
+  }
   
   if (bank_argument.points_per_scan <= 1)
   {
@@ -1913,7 +2496,7 @@ long find_moving_objects::Bank::init(BankArgument bank_argument, sensor_msgs::Po
 
 
 // Add FIRST PointCloud2 message to bank - no EMA
-long find_moving_objects::Bank::addFirstMessage(sensor_msgs::PointCloud2::ConstPtr msg)
+long Bank::addFirstMessage(sensor_msgs::PointCloud2::ConstPtr msg)
 {
   // Save timestamp
   bank_stamp[0] = msg->header.stamp.toSec();
@@ -1933,6 +2516,8 @@ long find_moving_objects::Bank::addFirstMessage(sensor_msgs::PointCloud2::ConstP
     return -1;
   }
   
+  ROS_DEBUG_STREAM("First message (PointCloud2):" << std::endl << *msg);
+  
   ROS_DEBUG("%s", getStringPutPoints().c_str());
   
   // Set put to 1 and newest to 0
@@ -1943,7 +2528,7 @@ long find_moving_objects::Bank::addFirstMessage(sensor_msgs::PointCloud2::ConstP
 }
 
 // Add PointCloud2 message and perform EMA
-long find_moving_objects::Bank::addMessage(sensor_msgs::PointCloud2::ConstPtr msg)
+long Bank::addMessage(sensor_msgs::PointCloud2::ConstPtr msg)
 {
   // Copy timestamp
   bank_stamp[bank_index_put] = msg->header.stamp.toSec();
@@ -1974,3 +2559,5 @@ long find_moving_objects::Bank::addMessage(sensor_msgs::PointCloud2::ConstPtr ms
   
   return 0;
 }
+
+} // namespace find_moving_objects

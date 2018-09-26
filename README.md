@@ -7,7 +7,8 @@ The file src/find_moving_objects/bank.h declares a class called BankArgument. An
 class is taken as input by the main class, Bank, also declared in this file. BankArgument mainly 
 consists of variables that control the behavior of the Bank object. Please refer to 
 src/find_moving_objects/bank.h or a doxygen-generated documentation for each variable. The default
-values for the variables work well for an office setting and a robot moving at about 0.5 m/s, 
-equipped with a LIDAR which produces scans at a frequency of about 25 Hz.
+values for the variables have been tested and work well for an office setting and a robot moving at 
+about 0.5 m/s, equipped with a LIDAR which produces scans at a frequency of about 25 Hz and a 
+depth camera which produces (voxel-grid-filtered) point clouds at a rate of about 12 Hz.
 
 This library is developed for, and tested on, ROS Kinetic.
