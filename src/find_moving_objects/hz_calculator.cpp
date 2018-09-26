@@ -77,6 +77,10 @@ double HZCalculator::calc(std::string topic)
   while (!first_message_received)
   {
     ros::spinOnce();
+    if (!node.ok())
+    {
+      return 0.0;
+    }
   }
   const double start_time = ros::Time::now().toSec();
   while ((elapsed_time < max_time && received_msgs < max_msgs) || received_msgs == 0)
