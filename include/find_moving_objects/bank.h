@@ -34,8 +34,8 @@
 * Author: Andreas Gustavsson
 *********************************************************************/
 
-#ifndef BANK_HPP
-#define BANK_HPP
+#ifndef BANK_H
+#define BANK_H
 #include <ros/ros.h>
 #include <tf/tf.h>
 #include <tf/transform_listener.h>
@@ -262,17 +262,17 @@ public:
   /**< The name of the <code>sensor_msgs::PointField</code> specifying the Z-coordinate.
    * Initialized to <code>"z"</code>. */
   
-  double PC2_voxel_leaf_size; 
+  float PC2_voxel_leaf_size; 
   /**< Approximate distance between two points (in meters) in the cloud. 
    * Initialized to 0.02 but, should most likely be calibrated. */
   
-  double PC2_threshold_z_min; 
+  float PC2_threshold_z_min; 
   /**< Do not account points with a Z-coordinate smaller than this. 
    * If <code>sensor_frame_has_z_axis_forward</code> is set, then the negated Y-coordinate is considered instead of the
    * Z-coordinate of the point, since the Y-axis is pointing down in that case.
    * Initialized to 0.1. */
   
-  double PC2_threshold_z_max; 
+  float PC2_threshold_z_max; 
   /**< Do not account points with a Z-coordinate larger than this. It is assumed that the Z-axis in the sensor frame is 
    * pointing up.
    * If <code>sensor_frame_has_z_axis_forward</code> is set, then the negated Y-coordinate is considered instead of the
@@ -534,4 +534,4 @@ public:
 
 } // namespace find_moving_objects
 
-#endif // BANK_HPP
+#endif // BANK_H

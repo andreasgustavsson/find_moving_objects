@@ -1216,7 +1216,8 @@ void Bank::findAndReportMovingObjects()
           }
           else
           {
-            ROS_ERROR("Cannot determine transform to map frame at old time %f.", bank_stamp[bank_index_put]);
+            ROS_ERROR("Cannot determine transform from %s to %s at old time %f.", bank_argument.sensor_frame.c_str(), \
+                      bank_argument.map_frame.c_str(), bank_stamp[bank_index_put]);
           }
         }
         catch (tf::TransformException ex)
@@ -1242,7 +1243,8 @@ void Bank::findAndReportMovingObjects()
           }
           else
           {
-            ROS_ERROR("Cannot determine transform to map frame at new time %f.", bank_stamp[bank_index_newest]);
+            ROS_ERROR("Cannot determine transform from %s to %s at new time %f.", bank_argument.sensor_frame.c_str(), \
+                      bank_argument.map_frame.c_str(), bank_stamp[bank_index_newest]);
           }
         }
         catch (tf::TransformException ex)
@@ -1269,7 +1271,8 @@ void Bank::findAndReportMovingObjects()
           }
           else
           {
-            ROS_ERROR("Cannot determine transform to fixed frame at old time %f.", bank_stamp[bank_index_put]);
+            ROS_ERROR("Cannot determine transform from %s to %s at old time %f.", bank_argument.sensor_frame.c_str(), \
+                      bank_argument.fixed_frame.c_str(), bank_stamp[bank_index_put]);
           }
         }
         catch (tf::TransformException ex)
@@ -1295,7 +1298,8 @@ void Bank::findAndReportMovingObjects()
           }
           else
           {
-            ROS_ERROR("Cannot determine transform to fixed frame at new time %f.", bank_stamp[bank_index_newest]);
+            ROS_ERROR("Cannot determine transform from %s to %s at new time %f.", bank_argument.sensor_frame.c_str(), \
+                      bank_argument.fixed_frame.c_str(), bank_stamp[bank_index_newest]);
           }
         }
         catch (tf::TransformException ex)
@@ -1322,7 +1326,8 @@ void Bank::findAndReportMovingObjects()
           }
           else
           {
-            ROS_ERROR("Cannot determine transform to base frame at old time %f.", bank_stamp[bank_index_put]);
+            ROS_ERROR("Cannot determine transform from %s to %s at old time %f.", bank_argument.sensor_frame.c_str(), \
+                      bank_argument.base_frame.c_str(), bank_stamp[bank_index_put]);
           }
         }
         catch (tf::TransformException ex)
@@ -1348,7 +1353,8 @@ void Bank::findAndReportMovingObjects()
           }
           else
           {
-            ROS_ERROR("Cannot determine transform to base frame at new time %f.", bank_stamp[bank_index_newest]);
+            ROS_ERROR("Cannot determine transform from %s to %s at new time %f.", bank_argument.sensor_frame.c_str(), 
+                      bank_argument.base_frame.c_str(), bank_stamp[bank_index_newest]);
           }
         }
         catch (tf::TransformException ex)

@@ -46,6 +46,7 @@
 /* LOCAL INCLUDES */
 #include <find_moving_objects/option.h>
 #include <find_moving_objects/bank.h>
+#include <find_moving_objects/hz_calculator.h>
 
 using namespace find_moving_objects;
 
@@ -81,7 +82,8 @@ double find_moving_objects::Bank::calculateConfidence(const find_moving_objects:
            transform_new_time_fixed_frame_success &&
            transform_old_time_base_frame_success  &&
            transform_new_time_base_frame_success ? 0.5 : 0.0) + // transform success,
-          a*(dt*dt-1.2*dt+0.27) + // a well-adapted bank size in relation to the sensor rate and environmental context,
+          a*(dt*dt-1.0*dt+0.16) + // a well-adapted bank size in relation to the sensor rate and environmental context
+          // (dt should be close to 0.5 seconds),
           (-5.0 * fabsf(mo.seen_width - mo_old_width)));// + // and low difference in width between old and new object,
           // make us more confident
 }
@@ -104,8 +106,11 @@ Option g_options[] = {
          // base_laser{,_ema} are not tf:ed;
          // setting this value to a value other than 0.0 causes the incoming message to be doubly copied (NOT GOOD!)...
   Option(false, "--nr_scans_in_bank",
-         "Size of the bank containing subsequent, EMA:ed messages",
-         11, 2, 20), // 10
+         "Size of the bank containing subsequent, EMA:ed messages (ignored if the below option is not 0.0 seconds)",
+         11, 2, 20),
+  Option(false, "--optimize_nr_scans_in_bank",
+         "If not 0.0, then the bank size is optimized to cover the given time period (seconds)",
+         0.0, 0.0, std::numeric_limits<float>::max()),
   Option(false, "--ema_alpha",
          "EMA coefficient representing the degree of weighting decrease",
          1.0, 0.0, 1.0),
@@ -168,22 +173,22 @@ Option g_options[] = {
          false),
   Option(false, "--object_threshold_edge_max_delta_range",
          "Maximum distance between two consecutive scan points belonging to the same object",
-         0.15, 0.0, std::numeric_limits<double>::max()), // 0.072
+         0.15, 0.0, std::numeric_limits<float>::max()), // 0.072
   Option(false, "--object_threshold_min_nr_points",
          "Objects must consist of at least this number of consecutive scan points",
          4, 1, 100000),
   Option(false, "--object_threshold_max_distance",
          "Object must consist of scan points with maximum this range",
-         6.5, 0.0, std::numeric_limits<double>::max()),
+         6.5, 0.0, std::numeric_limits<float>::max()),
   Option(false, "--object_threshold_min_speed",
          "Minimum speed of object to consider it moving",
-         0.03, 0.0, std::numeric_limits<double>::max()),
+         0.03, 0.0, std::numeric_limits<float>::max()),
   Option(false, "--object_threshold_max_delta_width_in_points",
          "Maximum size difference in points to consider old and current object instances the same",
          5, 0, 100000),
   Option(false, "--object_threshold_bank_tracking_max_delta_distance",
          "Maximum distance an object is allowed to move between two consecutive scans while tracking it through bank",
-         0.2, 0.0, std::numeric_limits<double>::max()),
+         0.2, 0.0, std::numeric_limits<float>::max()),
   Option(false, "--object_threshold_min_confidence",
          "Minimum confidence of object for publishing it",
          0.7, 0.0, 1.0), // 0.65
@@ -199,7 +204,8 @@ typedef enum {
   O_I_FIXED_FRAME,
   O_I_BASE_FRAME,
   O_I_MOUNTING_ANGLE_SHIFT_Z,
-  O_I_NR_MESSAGES_IN_BANK,
+  O_I_NR_SCANS_IN_BANK,
+  O_I_OPTIMIZE_NR_SCANS_IN_BANK,
   O_I_EMA_ALPHA,
   O_I_SUBSCRIBE_BUFFER_SIZE,
   O_I_SUBSCRIBE_TOPIC, // Topic on which we expect the sensor_msgs::LaserScan messages
@@ -337,6 +343,9 @@ int main (int argc, char ** argv)
   // Init ROS
   ros::init(argc, argv, "mo_finder_laserscan", ros::init_options::AnonymousName);
   g_node = new ros::NodeHandle;
+  
+  // Wait for time to become valid, then start bank
+  ros::Time::waitForValid();
   bank = new find_moving_objects::Bank;
 
   // Scan arguments
@@ -344,7 +353,7 @@ int main (int argc, char ** argv)
 
   // Init bank_argument with user options
   bank_argument.ema_alpha = g_options[O_I_EMA_ALPHA].getDoubleValue();
-  bank_argument.nr_scans_in_bank = g_options[O_I_NR_MESSAGES_IN_BANK].getLongValue();
+  bank_argument.nr_scans_in_bank = g_options[O_I_NR_SCANS_IN_BANK].getLongValue();
   bank_argument.object_threshold_edge_max_delta_range =
     g_options[O_I_OBJECT_THRESHOLD_EDGE_MAX_DELTA_RANGE].getDoubleValue();
   bank_argument.object_threshold_min_nr_points = g_options[O_I_OBJECT_THRESHOLD_MIN_NR_POINTS].getLongValue();
@@ -384,6 +393,25 @@ int main (int argc, char ** argv)
   bank_argument.topic_objects = g_options[O_I_TOPIC_OBJECTS].getStringValue();
   bank_argument.publish_buffer_size = g_options[O_I_PUBLISH_BUFFER_SIZE].getLongValue();
 
+  // Optimize bank size?
+  if (g_options[O_I_OPTIMIZE_NR_SCANS_IN_BANK].getDoubleValue() != 0.0)
+  {
+    HZCalculator hzc;
+    const double hz = hzc.calc(g_options[O_I_SUBSCRIBE_TOPIC].getStringValue());
+
+    // Set nr of messages in bank
+    const double nr_scans = g_options[O_I_OPTIMIZE_NR_SCANS_IN_BANK].getDoubleValue() * hz;
+    bank_argument.nr_scans_in_bank = nr_scans - ((const long) nr_scans) == 0.0 ? nr_scans + 1 : ceil(nr_scans);
+    
+    // Sanity check
+    if (bank_argument.nr_scans_in_bank < 2)
+    {
+      bank_argument.nr_scans_in_bank = 2;
+    }
+    
+    ROS_INFO_STREAM("Optimized bank size is " << bank_argument.nr_scans_in_bank);
+  }
+  
   // Receive first message and init bank
   {
     // Subscribe to the sensor topic using first callback

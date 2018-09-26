@@ -46,6 +46,7 @@
 /* LOCAL INCLUDES */
 #include <find_moving_objects/option.h>
 #include <find_moving_objects/bank.h>
+#include <find_moving_objects/hz_calculator.h>
 
 using namespace find_moving_objects;
 
@@ -81,7 +82,8 @@ double find_moving_objects::Bank::calculateConfidence(const find_moving_objects:
            transform_new_time_fixed_frame_success &&
            transform_old_time_base_frame_success  &&
            transform_new_time_base_frame_success ? 0.5 : 0.0) + // transform success,
-          a*(dt*dt-1.2*dt+0.27) +// a well-adapted bank size in relation to the sensor rate and environmental context,
+          a*(dt*dt-1.0*dt+0.16) + // a well-adapted bank size in relation to the sensor rate and environmental context
+          // (dt should be close to 0.5 seconds),
           (-5.0 * fabsf(mo.seen_width - mo_old_width))); // and low difference in width between old and new object,
           // make us more confident
 }
@@ -102,8 +104,11 @@ Option g_options[] = {
          "The sensor is using an optical frame (x right, y down and z forward)",
          false),
   Option(false, "--nr_scans_in_bank",
-         "Size of the bank containing subsequent, EMA:ed messages",
-         5, 2, 20),
+         "Size of the bank containing subsequent, EMA:ed messages (ignored if the below option is not 0.0 seconds)",
+         15, 2, 20),
+  Option(false, "--optimize_nr_scans_in_bank",
+         "If not 0.0, then the bank size is optimized to cover the given time period (seconds)",
+         0.0, 0.0, std::numeric_limits<float>::max()),
   Option(false, "--nr_points_per_scan_in_bank",
          "Determines the resolution of the bank",
          360, 1, 1800), // 720
@@ -184,34 +189,34 @@ Option g_options[] = {
          -1.0, 0.001, 0.1),
   Option(false, "--threshold_z_min",
          "Points with Z coordinates smaller than this are discarded",
-         0.0, 0.0, std::numeric_limits<double>::max()),
+         0.0, -std::numeric_limits<float>::max(), std::numeric_limits<float>::max()),
   Option(false, "--threshold_z_max",
          "Points with Z coordinates larger than this are discarded",
-         0.6, 0.0, std::numeric_limits<double>::max()),
+         0.6, -std::numeric_limits<float>::max(), std::numeric_limits<float>::max()),
   Option(false, "--object_threshold_edge_max_delta_range",
          "Maximum distance between two consecutive scan points belonging to the same object",
-         0.15, 0.0, std::numeric_limits<double>::max()), // 0.072
+         0.15, 0.0, std::numeric_limits<float>::max()), // 0.072
   Option(false, "--object_threshold_min_nr_points",
          "Objects must consist of at least this number of consecutive scan points",
          3, 1, 100000), // 5
   Option(false, "--object_threshold_max_distance",
          "Object must consist of scan points with maximum this range",
-         6.5, 0.0, std::numeric_limits<double>::max()),
+         6.5, 0.0, std::numeric_limits<float>::max()),
   Option(false, "--object_threshold_min_speed",
          "Minimum speed of object to consider it moving",
-         0.1, 0.0, std::numeric_limits<double>::max()),
+         0.1, 0.0, std::numeric_limits<float>::max()),
   Option(false, "--object_threshold_max_delta_width_in_points",
          "Maximum size difference in points to consider old and current object instances the same",
          15, 0, 100000),
   Option(false, "--object_threshold_bank_tracking_max_delta_distance",
          "Maximum distance an object is allowed to move between two consecutive scans while tracking it through the bank",
-         std::numeric_limits<double>::max(), 0.0, std::numeric_limits<double>::max()),
+         std::numeric_limits<float>::max(), 0.0, std::numeric_limits<float>::max()),
   Option(false, "--object_threshold_min_confidence",
          "Minimum confidence of object for publishing it",
          0.7, 0.0, 1.0), // 0.65
   Option(false, "--base_confidence",
          "How much we trust the sensor data",
-         0.1, 0.0, 1.0),
+         0.4, 0.0, 1.0),
 };
 
 
@@ -221,7 +226,8 @@ typedef enum {
   O_I_FIXED_FRAME,
   O_I_BASE_FRAME,
   O_I_SENSOR_FRAME_HAS_Z_AXIS_FORWARD,
-  O_I_NR_MESSAGES_IN_BANK,
+  O_I_NR_SCANS_IN_BANK,
+  O_I_OPTIMIZE_NR_SCANS_IN_BANK,
   O_I_NR_POINTS_PER_MESSAGE_IN_BANK,
   O_I_BANK_VIEW_ANGLE,
   O_I_EMA_ALPHA,
@@ -314,6 +320,10 @@ int main (int argc, char ** argv)
   // Init ROS
   ros::init(argc, argv, "mo_finder_pointcloud2", ros::init_options::AnonymousName);
   g_node = new ros::NodeHandle;
+  
+  // Wait for time to become valid, then start bank
+  ros::Time::waitForValid();
+  
   bank = new find_moving_objects::Bank;
 
   // Scan arguments
@@ -321,7 +331,7 @@ int main (int argc, char ** argv)
 
   // Init bank_argument using user options
   bank_argument.ema_alpha = g_options[O_I_EMA_ALPHA].getDoubleValue();
-  bank_argument.nr_scans_in_bank = g_options[O_I_NR_MESSAGES_IN_BANK].getLongValue();
+  bank_argument.nr_scans_in_bank = g_options[O_I_NR_SCANS_IN_BANK].getLongValue();
   bank_argument.points_per_scan = g_options[O_I_NR_POINTS_PER_MESSAGE_IN_BANK].getLongValue();
   bank_argument.angle_max = g_options[O_I_BANK_VIEW_ANGLE].getDoubleValue() / 2;
   bank_argument.angle_min = -bank_argument.angle_max;
@@ -380,6 +390,25 @@ int main (int argc, char ** argv)
                       g_options[O_I_THRESHOLD_Z_MIN].getName();
     ROS_ERROR("%s", err.c_str());
     ROS_BREAK();
+  }
+  
+    // Optimize bank size?
+  if (g_options[O_I_OPTIMIZE_NR_SCANS_IN_BANK].getDoubleValue() != 0.0)
+  {
+    HZCalculator hzc;
+    const double hz = hzc.calc(g_options[O_I_SUBSCRIBE_TOPIC].getStringValue());
+
+    // Set nr of messages in bank
+    const double nr_scans = g_options[O_I_OPTIMIZE_NR_SCANS_IN_BANK].getDoubleValue() * hz;
+    bank_argument.nr_scans_in_bank = nr_scans - ((long) nr_scans) == 0.0 ? nr_scans + 1 : ceil(nr_scans);
+    
+    // Sanity check
+    if (bank_argument.nr_scans_in_bank < 2)
+    {
+      bank_argument.nr_scans_in_bank = 2;
+    }
+    
+    ROS_INFO_STREAM("Optimized bank size is " << bank_argument.nr_scans_in_bank);
   }
 
   // Receive first message and init bank

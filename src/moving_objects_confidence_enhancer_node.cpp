@@ -608,6 +608,9 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "mo_confidence_enhancer", ros::init_options::AnonymousName);
   g_node = new ros::NodeHandle;
   
+  // Wait for time to become valid
+  ros::Time::waitForValid();
+  
   // Scan arguments
   Option::scanArgs(argc, argv, g_options);
   

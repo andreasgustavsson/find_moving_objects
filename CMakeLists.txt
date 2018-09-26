@@ -10,6 +10,7 @@ project(find_moving_objects)
 find_package(catkin REQUIRED COMPONENTS
   roscpp 
   tf 
+  topic_tools
   message_generation 
   sensor_msgs 
   visualization_msgs 
@@ -130,6 +131,7 @@ include_directories(
 
 ## Declare a C++ library
 add_library(option  src/${PROJECT_NAME}/option.cpp)
+add_library(hz_calculator  src/${PROJECT_NAME}/hz_calculator.cpp)
 add_library(find_moving_objects  src/${PROJECT_NAME}/bank.cpp)
 
 ## Add cmake target dependencies of the library
@@ -155,8 +157,8 @@ add_executable(moving_objects_confidence_enhancer_node src/moving_objects_confid
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-add_dependencies(laserscan_interpreter_node option find_moving_objects)
-add_dependencies(pointcloud2_interpreter_node option find_moving_objects)
+add_dependencies(laserscan_interpreter_node option find_moving_objects hz_calculator)
+add_dependencies(pointcloud2_interpreter_node option find_moving_objects hz_calculator)
 add_dependencies(moving_objects_confidence_enhancer_node ${PROJECT_NAME}_generate_messages)
 add_dependencies(moving_objects_confidence_enhancer_node option)
 
@@ -165,6 +167,11 @@ target_link_libraries(
 find_moving_objects
   ${catkin_LIBRARIES}
   m
+)
+
+target_link_libraries(
+hz_calculator
+  ${catkin_LIBRARIES}
 )
 
 target_link_libraries(
@@ -177,6 +184,7 @@ laserscan_interpreter_node
   ${catkin_LIBRARIES}
   option
   find_moving_objects
+  hz_calculator
 )
 
 target_link_libraries(
@@ -184,6 +192,7 @@ pointcloud2_interpreter_node
   ${catkin_LIBRARIES}
   option
   find_moving_objects
+  hz_calculator
 )
 
 target_link_libraries(

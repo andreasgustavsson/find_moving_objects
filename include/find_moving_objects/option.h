@@ -34,8 +34,8 @@
 * Author: Andreas Gustavsson
 *********************************************************************/
 
-#ifndef OPTIONS_HPP
-#define OPTIONS_HPP
+#ifndef OPTIONS_H
+#define OPTIONS_H
 
 #include <limits>
 #include <boost/variant.hpp>
@@ -246,4 +246,4 @@ public:
 
 } // namespace find_moving_objects
 
-#endif // OPTIONS_HPP
+#endif // OPTIONS_H
