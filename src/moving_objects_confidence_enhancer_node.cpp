@@ -92,7 +92,7 @@ Option g_options[] = {
          "Publishing queue size", 
          10, 1, 1000),
   Option(false, "--no_publish_objects", 
-         "Do not publish any MOA messages", 
+         "Do not publish any MovingObjectArray messages", 
          false),
   Option(false, "--publish_objects_closest_point_markers", 
          "Publish closest points of each object as a LaserScan message", 
@@ -113,7 +113,7 @@ Option g_options[] = {
          "Show velocity of object in fixed frame instead of map", 
          false),
   Option(false, "--topic_moving_objects_fused", 
-         "Topic for publishing MOA messages with fused objects", 
+         "Topic for publishing MovingObjectArray messages with fused objects", 
          std::string("/moving_objects_fused")),
   Option(false, "--topic_objects_closest_point_markers", 
          "Topic for publishing closest points of the objects", 
@@ -625,7 +625,7 @@ int main(int argc, char** argv)
                                                  (g_options[O_I_TOPIC_OBJECTS_CLOSEST_POINT_MARKERS].getStringValue(), 
                                                   g_options[O_I_PUBLISH_BUFFER_SIZE].getLongValue());
   
-  // MOA handler thread
+  // MovingObjectArray handler thread
   pthread_t moa_handler;
   if (pthread_create(&moa_handler, NULL, moaHandlerBody, NULL))
   {
