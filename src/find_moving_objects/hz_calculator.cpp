@@ -67,7 +67,7 @@ double HZCalculator::calc(std::string topic)
   ros::Subscriber sub = node.subscribe<topic_tools::ShapeShifter>(topic, 10, callback);
     
   // spin until target is reached
-  const double max_time = 1.2;
+  const double max_time = 1.5;
   double elapsed_time = 0.0;
   const int max_msgs = 100;
   received_msgs = 0;
