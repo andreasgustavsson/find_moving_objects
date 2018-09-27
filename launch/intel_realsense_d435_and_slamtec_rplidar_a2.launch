@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+
+  <!-- uncomment the following two lines to set logger level to DEBUG for find_moving_objects -->
+<!--   <env name="ROSCONSOLE_CONFIG_FILE" -->
+<!--        value="$(find find_moving_objects)/logger_config/logger_config_debug.config" /> -->
+  
+  
+  
+  <!-- Command line arguments:
+       Anything you specify on the command line has precedence over the values specified in this file -->
+  
+  <arg name="laserscan_interpreter_extra_args"
+       default=""
+       doc="Additional args for the laserscan interpreter"
+       />
+  
+  <arg name="pointcloud2_interpreter_extra_args"
+       default=""
+       doc="Additional args for the pointcloud2 interpreter"
+       />
+  
+  <arg name="frame_broadcaster_extra_args"
+       default=""
+       doc="Additional args for the frame broadcaster"
+       />
+  
+  <!-- Frames broadcaster - avoid tf transformation errors by publishing the relation between the involved frames
+                            THIS NODE IS UNAVAILABLE IN THIS PACKAGE AND CAN BE REMOVED IF YOU HAVE NOT FETCHED THE 
+                            find_moving_objects_example SOURCES FROM GITHUB --> 
+  <node pkg="unicorn_sensor_interpreter"
+        type="evaluation_frame_broadcaster_node"
+        name="frame_broadcaster" 
+        args="--print_all_options
+              $(arg frame_broadcaster_extra_args)"
+        output="screen"
+        />
+
+  <!-- Run laserscan interpreter for lidar -->
+  <node pkg="find_moving_objects"
+        type="laserscan_interpreter_node"
+        name="laserscan_interpreter"
+        args="--print_all_options
+              --subscribe_topic /scan
+              --publish_ema
+              --publish_objects_closest_point_markers
+              --publish_objects_velocity_arrows
+              --publish_objects_delta_position_lines
+              --publish_objects_width_lines
+              --nr_scans_in_bank 8
+              --object_threshold_min_speed 0.1
+              --object_threshold_max_distance 8
+              --object_threshold_min_nr_points 4
+              --object_threshold_min_confidence 0.5
+              --object_threshold_edge_max_delta_range 0.2
+              --object_threshold_max_delta_width_in_points 20
+              --object_threshold_bank_tracking_max_delta_distance 0.4
+              --topic_objects /moving_objects_laser
+              $(arg laserscan_interpreter_extra_args)"
+          output="screen"
+        />
+  
+  <!-- Voxel filter to down-scale pointcloud2 -->
+  <node pkg="nodelet" type="nodelet" name="pcl_manager" args="manager" output="screen" />
+  <node pkg="nodelet" type="nodelet" name="voxel_grid" args="load pcl/VoxelGrid pcl_manager" output="screen">
+    <remap from="~input" to="/camera/depth/color/points" />
+    <remap from="~output" to="/camera/depth/color/points/filtered" />
+    <rosparam>
+      filter_field_name: z
+      filter_limit_min: 0.01
+      filter_limit_max: 6.5
+      filter_limit_negative: False
+      leaf_size: 0.01
+<!--       output_frame: camera_link -->
+    </rosparam>
+  </node>
+  
+  <!-- Run pointcloud2 interpreter for camera -->
+  <node pkg="find_moving_objects"
+        type="pointcloud2_interpreter_node"
+        name="pointcloud2_interpreter"
+        args="--print_all_options
+              --subscribe_topic /camera/depth/color/points/filtered
+              --sensor_frame_has_z_axis_forward
+              --base_frame base_link
+              --fixed_frame odom
+              --map_frame map
+              --subscribe_buffer_size 1
+              --publish_ema
+              --ema_alpha 1.0
+              --publish_objects_closest_point_markers
+              --publish_objects_velocity_arrows
+              --publish_objects_delta_position_lines
+              --publish_objects_width_lines
+              --velocity_arrows_use_sensor_frame
+              --nr_scans_in_bank 11
+              --nr_points_per_scan_in_bank 360
+              --voxel_leaf_size 0.01
+              --threshold_z_min 0
+              --threshold_z_max 1
+              --object_threshold_min_speed 0.03
+              --object_threshold_max_distance 6.5
+              --object_threshold_min_nr_points 4
+              --object_threshold_min_confidence 0.5
+              --object_threshold_edge_max_delta_range 0.15
+              --object_threshold_max_delta_width_in_points 50
+              --object_threshold_bank_tracking_max_delta_distance 0.4
+              $(arg pointcloud2_interpreter_extra_args)"
+          output="screen"
+        />
+  
+  <!-- Run rviz for visualization -->
+  <node pkg="rviz" 
+        type="rviz" 
+        name="rviz" 
+        args="--display-config $(find find_moving_objects)/rviz/moving_objects.rviz"
+        required="true"
+        />
+  
+  <!-- Run Slamtec rpLidar A2 -->
+  <include file="$(find rplidar_ros)/launch/rplidar.launch">
+  </include>
+  
+  <!-- Run Intel Realsense D435 -->
+  <include file="$(find realsense2_camera)/launch/rs_camera.launch">
+           <arg name="enable_pointcloud" value="true"/>
+           <arg name="align_depth" value="true"/>
+           <arg name="enable_sync" value="true"/>
+  </include>
+  
+</launch>

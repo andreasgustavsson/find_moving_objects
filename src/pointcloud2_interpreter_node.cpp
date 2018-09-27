@@ -105,10 +105,10 @@ Option g_options[] = {
          false),
   Option(false, "--nr_scans_in_bank",
          "Size of the bank containing subsequent, EMA:ed messages (ignored if the below option is not 0.0 seconds)",
-         15, 2, 20),
+         10, 2, 20),
   Option(false, "--optimize_nr_scans_in_bank",
          "If not 0.0, then the bank size is optimized to cover the given time period (seconds)",
-         0.0, 0.0, std::numeric_limits<float>::max()),
+         0.5, 0.0, std::numeric_limits<float>::max()), // 0.5 seconds is assumed in the confidence calculation function
   Option(false, "--nr_points_per_scan_in_bank",
          "Determines the resolution of the bank",
          360, 1, 1800), // 720

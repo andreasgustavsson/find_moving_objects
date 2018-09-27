@@ -107,10 +107,10 @@ Option g_options[] = {
          // setting this value to a value other than 0.0 causes the incoming message to be doubly copied (NOT GOOD!)...
   Option(false, "--nr_scans_in_bank",
          "Size of the bank containing subsequent, EMA:ed messages (ignored if the below option is not 0.0 seconds)",
-         11, 2, 20),
+         10, 2, 20),
   Option(false, "--optimize_nr_scans_in_bank",
          "If not 0.0, then the bank size is optimized to cover the given time period (seconds)",
-         0.0, 0.0, std::numeric_limits<float>::max()),
+         0.5, 0.0, std::numeric_limits<float>::max()), // 0.5 seconds is assumed in the confidence calculation function
   Option(false, "--ema_alpha",
          "EMA coefficient representing the degree of weighting decrease",
          1.0, 0.0, 1.0),

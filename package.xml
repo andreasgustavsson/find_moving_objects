@@ -10,7 +10,8 @@
   <!-- Url tags are optional, but multiple are allowed, one per tag -->
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
   <!-- Example: -->
-  <!-- <url type="website">http://wiki.ros.org/unicorn_sensor_interpreter</url> -->
+  <!-- <url type="website">http://wiki.ros.org/find_moving_objects</url> -->
+  <url type="sources">https://github.com/andreasgustavsson/find_moving_objects</url>
   
   
   <!-- Author tags are optional, multiple are allowed, one per tag -->
@@ -55,7 +56,7 @@
   <build_export_depend>message_generation</build_export_depend>
   <build_export_depend>visualization_msgs</build_export_depend>
   <build_export_depend>sensor_msgs</build_export_depend>
-  <build_export_depend>geometry_msgs</build_export_depend>
+<!--   <build_export_depend>geometry_msgs</build_export_depend> -->
   <exec_depend>roscpp</exec_depend>
   <!--   <exec_depend>rospy</exec_depend> -->
   <exec_depend>tf</exec_depend>
