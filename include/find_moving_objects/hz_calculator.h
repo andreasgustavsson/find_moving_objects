@@ -40,6 +40,9 @@
 
 #include <topic_tools/shape_shifter.h>
 
+namespace find_moving_objects
+{
+
 class HZCalculator
 {
 private:
@@ -52,5 +55,6 @@ public:
   double calc(std::string topic);
 };
 
+} // namespace find_moving_objects
 
 #endif // HZ_CALCULATOR_H

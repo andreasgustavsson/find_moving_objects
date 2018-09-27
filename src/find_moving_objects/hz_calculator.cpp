@@ -39,6 +39,8 @@
 #include <ros/ros.h>
 #include <topic_tools/shape_shifter.h>
 
+namespace find_moving_objects
+{
 
 // // http://wiki.ros.org/ros_type_introspection/Tutorials/GenericTopicSubscriber
 void HZCalculator::cb(const topic_tools::ShapeShifter::ConstPtr & msg) //, const std::string &topic_name)
@@ -95,3 +97,5 @@ double HZCalculator::calc(std::string topic)
   
   return received_msgs / elapsed_time;
 }
+
+} // namespace find_moving_objects

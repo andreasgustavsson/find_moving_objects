@@ -1,12 +1,29 @@
 /**
 \mainpage
 
+\section Messages Defined Messages
+- \link MovingObject.msg MovingObject.msg \endlink
+- \link MovingObjectArray.msg MovingObjectArray.msg \endlink
+
 \section FindMovingObjectsAPI Find Moving Objects Code API
 - \link find_moving_objects::Bank Bank (C++) \endlink
 - \link find_moving_objects::BankArgument BankArgument (C++) \endlink
 
 \section OptionAPI Command Line Options Code API
 - \link find_moving_objects::Option Option (C++) \endlink
+
+\section HZCalcAPI Topic Rate Calculator Code API
+- \link find_moving_objects::HZCalculator HZCalculator (C++) \endlink
+
+\section LaserScanInterpreterNode A Node for Interpreting a LaserScan Data Stream
+- \link laserscan_interpreter_node.cpp laserscan_interpreter_node.cpp \endlink 
+defines a node that finds objects in a <a href="http://docs.ros.org/api/sensor_msgs/html/msg/LaserScan.html">
+sensor_msgs::LaserScan</a> data stream and derives and reports their positions and velocities in several ROS frames.
+
+\section PointCloud2InterpreterNode A Node for Interpreting a PointCloud2 Data Stream
+- \link pointcloud2_interpreter_node.cpp pointcloud2_interpreter_node.cpp \endlink 
+defines a node that finds objects in a <a href="http://docs.ros.org/api/sensor_msgs/html/msg/PointCloud2.html">
+sensor_msgs::PointCloud2</a> data stream and derives and reports their positions and velocities in several ROS frames.
 
 \section ConfidenceEnhancerNode A Confidence Enhancing ROS Node
 - \link moving_objects_confidence_enhancer_node.cpp moving_objects_confidence_enhancer_node.cpp \endlink 
