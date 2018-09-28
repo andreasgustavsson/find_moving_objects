@@ -148,6 +148,9 @@ add_dependencies(find_moving_objects ${PROJECT_NAME}_generate_messages)
 add_executable(laserscan_interpreter_node src/laserscan_interpreter_node.cpp)
 add_executable(pointcloud2_interpreter_node src/pointcloud2_interpreter_node.cpp)
 add_executable(moving_objects_confidence_enhancer_node src/moving_objects_confidence_enhancer_node.cpp)
+add_executable(example_frame_broadcaster_node src/example_frame_broadcaster_node.cpp)
+add_executable(example_d435_voxel_echoer_node src/example_d435_voxel_echoer_node.cpp)
+add_executable(example_rplidar_echoer_node src/example_rplidar_echoer_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -162,6 +165,9 @@ add_dependencies(laserscan_interpreter_node option find_moving_objects hz_calcul
 add_dependencies(pointcloud2_interpreter_node option find_moving_objects hz_calculator)
 add_dependencies(moving_objects_confidence_enhancer_node ${PROJECT_NAME}_generate_messages)
 add_dependencies(moving_objects_confidence_enhancer_node option)
+add_dependencies(example_frame_broadcaster_node option)
+add_dependencies(example_d435_voxel_echoer_node option)
+add_dependencies(example_rplidar_echoer_node option)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(
@@ -200,6 +206,22 @@ target_link_libraries(
 moving_objects_confidence_enhancer_node
   ${catkin_LIBRARIES}
   option
+)
+
+target_link_libraries(
+example_frame_broadcaster_node
+  ${catkin_LIBRARIES}
+  option
+)
+
+target_link_libraries(
+example_d435_voxel_echoer_node
+  ${catkin_LIBRARIES}
+)
+
+target_link_libraries(
+example_rplidar_echoer_node
+  ${catkin_LIBRARIES}
 )
 
 #############

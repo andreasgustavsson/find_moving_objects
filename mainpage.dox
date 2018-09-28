@@ -33,4 +33,23 @@ sensor_msgs::PointCloud2</a> data stream and derives and reports their positions
 - \link moving_objects_confidence_enhancer_node.cpp moving_objects_confidence_enhancer_node.cpp \endlink 
 defines a node that tries to increase the confidence of objects which are seen by several sensors.
 
+\section ExampleBag Example Bag File
+There is a launch file that uses rosbag to play back a recording of the system when getting input from an Intel 
+Realsense D435 depth camera (producing point clouds) and a Slamtec rplidar A2M8 (producing laser scans). Note that this
+bag file is compressed and must be extracted before the launch file can be used.
+
+\section ExampleLaunch Example Launch File
+There is a launch file that plays back the bag extracted bag file and runs the above interpreter nodes to find moving
+objects. Rviz is used for visualization.
+There is also a launch file for running a live system with two specific sensors.
+
+\section ExampleNodes Auxiliary Nodes Used when Playing Back the Example Bag
+- \link example_frame_broadcaster_node.cpp example_frame_broadcaster_node.cpp \endlink
+defines a node that broadcasts the relations between the different components and frames.
+- \link example_d435_voxel_echoer_node.cpp example_d435_voxel_echoer_node.cpp \endlink and 
+  \link example_rplidar_echoer_node.cpp example_rplidar_echoer_node.cpp \endlink
+define nodes that echo the played-back messages from the camera and LIDAR, respectively, with updated timestamps.
+This is to prevent the system from dropping the messages because they are too old (note that the actually played-back 
+messages are dropped, but that the echoed messages are not).
+
 */

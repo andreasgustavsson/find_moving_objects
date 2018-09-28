@@ -25,11 +25,12 @@
        doc="Additional args for the frame broadcaster"
        />
   
+  
+  
   <!-- Frames broadcaster - avoid tf transformation errors by publishing the relation between the involved frames
-                            THIS NODE IS UNAVAILABLE IN THIS PACKAGE AND CAN BE REMOVED IF YOU HAVE NOT FETCHED THE 
-                            find_moving_objects_example SOURCES FROM GITHUB --> 
-  <node pkg="unicorn_sensor_interpreter"
-        type="evaluation_frame_broadcaster_node"
+                    UPDATE THIS ACCORDING TO YOUR OWN NEEDS -->
+  <node pkg="find_moving_objects"
+        type="example_frame_broadcaster_node"
         name="frame_broadcaster" 
         args="--print_all_options
               $(arg frame_broadcaster_extra_args)"
