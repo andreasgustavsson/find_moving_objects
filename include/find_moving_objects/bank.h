@@ -240,11 +240,11 @@ public:
    * Initialized to <code>"base_link"</code>. */
   
   
-  // TODO: dox
-  float merge_threshold_max_angle_gap;
-  float merge_threshold_max_end_points_distance_delta;
-  float merge_threshold_max_velocity_direction_delta;
-  float merge_threshold_max_speed_delta;
+//   // TODO: dox
+//   float merge_threshold_max_angle_gap;
+//   float merge_threshold_max_end_points_distance_delta;
+//   float merge_threshold_max_velocity_direction_delta;
+//   float merge_threshold_max_speed_delta;
   
   
   /*

@@ -43,15 +43,30 @@
 namespace find_moving_objects
 {
 
+/** This class is used for calculating the message rate of some arbitrary topic.
+ * Only a short measurement is performed, so a stable message stream is assumed.
+ */
 class HZCalculator
 {
 private:
   bool first_message_received;
+  /**< Whether the first message on the given topic has been received. The rate measurement starts when this is true. */
+  
   int received_msgs;
+  /**< The message count. */
+  
   void cb(const topic_tools::ShapeShifter::ConstPtr & msg);
+  /**< The callback function counting the number of received messages. */
+  
   void cbFirst(const topic_tools::ShapeShifter::ConstPtr & msg);
+  /**< The callback function which starts the rate measurement by announcing that the first message was received. */
   
 public:
+  /** Calculates the rate of the messages received on the given topic.
+   * 
+   * @param topic The name of the topic for which to calculate the message rate.
+   * @return The calculated message rate for the given topic.
+   */
   double calc(std::string topic);
 };
 

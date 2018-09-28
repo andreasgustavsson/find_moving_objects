@@ -146,10 +146,10 @@ BankArgument::BankArgument()
   map_frame = "map";
   fixed_frame = "odom";
   base_frame = "base_link";
-  merge_threshold_max_angle_gap = 0.0 / 180.0 * M_PI;
-  merge_threshold_max_end_points_distance_delta = 0.2;
-  merge_threshold_max_velocity_direction_delta = 25.0 / 180.0 * M_PI;
-  merge_threshold_max_speed_delta = 0.2;
+//   merge_threshold_max_angle_gap = 0.0 / 180.0 * M_PI;
+//   merge_threshold_max_end_points_distance_delta = 0.2;
+//   merge_threshold_max_velocity_direction_delta = 25.0 / 180.0 * M_PI;
+//   merge_threshold_max_speed_delta = 0.2;
   PC2_message_x_coordinate_field_name = "x";
   PC2_message_y_coordinate_field_name = "y";
   PC2_message_z_coordinate_field_name = "z";
@@ -198,12 +198,12 @@ std::ostream& operator<<(std::ostream & os, const BankArgument & ba)
     "  map_frame = " << ba.map_frame << std::endl <<
     "  fixed_frame = " << ba.fixed_frame << std::endl <<
     "  base_frame = " << ba.base_frame << std::endl <<
-    "  merge_threshold_max_angle_gap = " << ba.merge_threshold_max_angle_gap << std::endl <<
-    "  merge_threshold_max_end_points_distance_delta = " << 
-    ba.merge_threshold_max_end_points_distance_delta << std::endl <<
-    "  merge_threshold_max_velocity_direction_delta = " << 
-    ba.merge_threshold_max_velocity_direction_delta << std::endl <<
-    "  merge_threshold_max_speed_delta = " << ba.merge_threshold_max_speed_delta << std::endl <<
+//     "  merge_threshold_max_angle_gap = " << ba.merge_threshold_max_angle_gap << std::endl <<
+//     "  merge_threshold_max_end_points_distance_delta = " << 
+//     ba.merge_threshold_max_end_points_distance_delta << std::endl <<
+//     "  merge_threshold_max_velocity_direction_delta = " << 
+//     ba.merge_threshold_max_velocity_direction_delta << std::endl <<
+//     "  merge_threshold_max_speed_delta = " << ba.merge_threshold_max_speed_delta << std::endl <<
     "  PC2_message_x_coordinate_field_name = " << ba.PC2_message_x_coordinate_field_name << std::endl <<
     "  PC2_message_y_coordinate_field_name = " << ba.PC2_message_y_coordinate_field_name << std::endl <<
     "  PC2_message_z_coordinate_field_name = " << ba.PC2_message_z_coordinate_field_name << std::endl <<
@@ -342,17 +342,17 @@ void BankArgument::check()
   ROS_ASSERT_MSG(base_frame != "", 
                  "Please specify base frame."); 
   
-  ROS_ASSERT_MSG(0.0 <= merge_threshold_max_angle_gap && merge_threshold_max_angle_gap <= angle_max - angle_min,
-                 "Invalid gap angle.");
-  
-  ROS_ASSERT_MSG(0.0 <= merge_threshold_max_end_points_distance_delta,
-                 "Distance delta cannot be negative.");
-  
-  ROS_ASSERT_MSG(0.0 <= merge_threshold_max_velocity_direction_delta && merge_threshold_max_velocity_direction_delta <= M_PI,
-                 "The maximum angle between two vectors is always greater than 0 and smaller than PI.");
-  
-  ROS_ASSERT_MSG(0.0 <= merge_threshold_max_speed_delta,
-                 "Speed delta cannot be negative.");
+//   ROS_ASSERT_MSG(0.0 <= merge_threshold_max_angle_gap && merge_threshold_max_angle_gap <= angle_max - angle_min,
+//                  "Invalid gap angle.");
+//   
+//   ROS_ASSERT_MSG(0.0 <= merge_threshold_max_end_points_distance_delta,
+//                  "Distance delta cannot be negative.");
+//   
+//   ROS_ASSERT_MSG(0.0 <= merge_threshold_max_velocity_direction_delta && merge_threshold_max_velocity_direction_delta <= M_PI,
+//                  "The maximum angle between two vectors is always greater than 0 and smaller than PI.");
+//   
+//   ROS_ASSERT_MSG(0.0 <= merge_threshold_max_speed_delta,
+//                  "Speed delta cannot be negative.");
 }
 
   
