@@ -112,9 +112,9 @@ Option g_options[] = {
   Option(false, "--velocity_arrows_use_fixed_frame", 
          "Show velocity of object in fixed frame instead of map", 
          false),
-  Option(false, "--topic_moving_objects_fused", 
-         "Topic for publishing MovingObjectArray messages with fused objects", 
-         std::string("/moving_objects_fused")),
+  Option(false, "--topic_moving_objects_enhanced", 
+         "Topic for publishing MovingObjectArray messages with enhanced confidences for objects", 
+         std::string("/moving_objects_enhanced")),
   Option(false, "--topic_objects_closest_point_markers", 
          "Topic for publishing closest points of the objects", 
          std::string("/fused_objects_closest_point_markers")),
@@ -133,6 +133,9 @@ Option g_options[] = {
   Option(false, "--threshold_max_delta_velocity", 
          "Maximum offset from current velocity when trying to fuse with object seen by a different source",
          0.1, 0.0, 10.0),
+  Option(false, "--ignore_z_map_coordinate_for_position",
+         "Ignore the z cooridnate in the map position when comparing positions between objects",
+         false),
 };
 
 
@@ -150,13 +153,14 @@ typedef enum {
   O_I_VELOCITY_ARROWS_USE_SENSOR_FRAME,
   O_I_VELOCITY_ARROWS_USE_BASE_FRAME,
   O_I_VELOCITY_ARROWS_USE_FIXED_FRAME,
-  O_I_TOPIC_MOVING_OBJECTS_FUSED,
+  O_I_TOPIC_MOVING_OBJECTS_ENHANCED,
   O_I_TOPIC_OBJECTS_CLOSEST_POINT_MARKERS,
   O_I_TOPIC_OBJECTS_VELOCITY_ARROWS,
   O_I_THRESHOLD_MIN_CONFIDENCE,
   O_I_THRESHOLD_MAX_DELTA_TIME_FOR_DIFFERENT_SOURCES,
   O_I_THRESHOLD_MAX_DELTA_POSITION,
   O_I_THRESHOLD_MAX_DELTA_VELOCITY,
+  O_I_IGNORE_Z_MAP_COORDINATE_FOR_POSITION,
   NR_OPTIONS
 } option_index_t;
 
@@ -264,6 +268,7 @@ void * moaHandlerBody(void * arg)
                                                            threshold_max_delta_position_line;
   const double threshold_max_delta_velocity = g_options[O_I_THRESHOLD_MAX_DELTA_VELOCITY].getDoubleValue();
   const double threshold_max_delta_velocity_squared = threshold_max_delta_velocity * threshold_max_delta_velocity;
+  const bool ignore_z_map_coordinate_for_position = g_options[O_I_IGNORE_Z_MAP_COORDINATE_FOR_POSITION].getBoolValue();
   
   // Local message pointer
   find_moving_objects::MovingObjectArray::ConstPtr msg_sender;
@@ -428,7 +433,9 @@ void * moaHandlerBody(void * arg)
                   // Compare position and velocity in fixed frame (assume this frame is the same for all sources)
                   const double dx = sender_mo->position_in_map_frame.x - other_mo->position_in_map_frame.x;
                   const double dy = sender_mo->position_in_map_frame.y - other_mo->position_in_map_frame.y;
-                  const double dz = sender_mo->position_in_map_frame.z - other_mo->position_in_map_frame.z;
+                  const double dz = ignore_z_map_coordinate_for_position ?
+                                    0.0 :
+                                    sender_mo->position_in_map_frame.z - other_mo->position_in_map_frame.z;
                   const double dp2 = dx*dx + dy*dy + dz*dz;
                   
                   const double dvx = sender_mo->velocity_in_map_frame.x - other_mo->velocity_in_map_frame.x;
@@ -616,7 +623,7 @@ int main(int argc, char** argv)
   
   // Init publisher
   g_pub_moaf = g_node->advertise<find_moving_objects::MovingObjectArray>
-                              (g_options[O_I_TOPIC_MOVING_OBJECTS_FUSED].getStringValue(),
+                              (g_options[O_I_TOPIC_MOVING_OBJECTS_ENHANCED].getStringValue(),
                                g_options[O_I_PUBLISH_BUFFER_SIZE].getLongValue());
   g_pub_objects_velocity_arrows = g_node->advertise<visualization_msgs::MarkerArray>
                                                  (g_options[O_I_TOPIC_OBJECTS_VELOCITY_ARROWS].getStringValue(), 

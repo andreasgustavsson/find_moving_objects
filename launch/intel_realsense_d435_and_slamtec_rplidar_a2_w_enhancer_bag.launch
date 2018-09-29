@@ -127,11 +127,22 @@
         output="screen"
         />
   
+  <!-- Run confidence enhancing node -->
+  <node pkg="find_moving_objects"
+        type="moving_objects_confidence_enhancer_node"
+        name="confidence_enhancer"
+        args="--print_all_options
+              --publish_objects_closest_point_markers
+              --publish_objects_velocity_arrows
+              --ignore_z_map_coordinate_for_position"
+        output="screen"
+        />
+  
   <!-- Run rviz for visualization -->
   <node pkg="rviz" 
         type="rviz" 
         name="rviz" 
-        args="--display-config $(find find_moving_objects)/rviz/moving_objects_bag.rviz"
+        args="--display-config $(find find_moving_objects)/rviz/moving_objects_enhanced_bag.rviz"
         required="true"
         />
 
