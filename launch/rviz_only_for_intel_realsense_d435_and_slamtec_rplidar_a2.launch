@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+
+  <!-- Run rviz for visualization -->
+  <node pkg="rviz" 
+        type="rviz" 
+        name="rviz" 
+        args="--display-config $(find find_moving_objects)/rviz/moving_objects.rviz"
+        />
+  
+</launch>
