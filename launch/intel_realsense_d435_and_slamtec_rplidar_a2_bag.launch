@@ -79,7 +79,6 @@
               --publish_ema
               --publish_objects_closest_point_markers
               --publish_objects_velocity_arrows
-              --publish_objects_delta_position_lines
               --publish_objects_width_lines
               --optimize_nr_scans_in_bank 0.5
               --object_threshold_min_speed 0.1
@@ -108,7 +107,6 @@
               --ema_alpha 1.0
               --publish_objects_closest_point_markers
               --publish_objects_velocity_arrows
-              --publish_objects_delta_position_lines
               --publish_objects_width_lines
               --velocity_arrows_use_sensor_frame
               --optimize_nr_scans_in_bank 0.5

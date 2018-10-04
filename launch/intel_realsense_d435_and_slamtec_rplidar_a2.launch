@@ -56,7 +56,6 @@
               --object_threshold_edge_max_delta_range 0.2
               --object_threshold_max_delta_width_in_points 20
               --object_threshold_bank_tracking_max_delta_distance 0.4
-              --topic_objects /moving_objects_laser
               $(arg laserscan_interpreter_extra_args)"
           output="screen"
         />
