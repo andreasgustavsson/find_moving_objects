@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+  
+  <!-- uncomment the following two lines to set logger level to DEBUG for find_moving_objects -->
+<!--   <env name="ROSCONSOLE_CONFIG_FILE" -->
+<!--        value="$(find find_moving_objects)/logger_config/logger_config_debug.config" /> -->
+
+  
+  
+  <!-- Command line arguments:
+       Anything you specify on the command line has precedence over the values specified in this file -->
+  
+  <arg name="rosbag_extra_args"
+       default=""
+       doc="Additional args for rosbag play"
+       />
+  
+  <arg name="rosbag_required"
+       default="false"
+       doc="Set this to true if rosbag is a required node"
+       />
+  
+  <arg name="bag_path"
+       default="$(find find_moving_objects)/bags"
+       doc="Base path to log/bag files"
+       />
+  
+  <!-- NOTE THAT THE FOLLOWING FILE IS COMPRESSED AND MUST BE EXTRACTED -->
+  <arg name="bag" 
+       default="object_is_moving_in_a_convex_arc.bag" 
+       doc="bag file to play"
+       />
+  
+  <arg name="laserscan_interpreter_extra_args"
+       default=""
+       doc="Additional args for the laserscan interpreter"
+       />
+  
+  <arg name="frame_broadcaster_extra_args"
+       default=""
+       doc="Additional args for the frame broadcaster"
+       />
+  
+  
+  
+  <!-- Frames broadcaster - avoid tf transformation errors by publishing the relation between the involved frames
+                    UPDATE THIS ACCORDING TO YOUR OWN NEEDS --> 
+  <node pkg="find_moving_objects"
+        type="example_frame_broadcaster_node"
+        name="frame_broadcaster" 
+        args="--print_all_options
+              $(arg frame_broadcaster_extra_args)"
+        output="screen"
+        />
+  
+  <!-- laserscan echor - avoid dropping too old messages by updating their timestamps -->
+  <node pkg="find_moving_objects"
+        type="example_rplidar_echoer_node"
+        name="rplidar_echoer"
+        />
+
+  <!-- Run laserscan interpreter for lidar -->
+  <node pkg="find_moving_objects"
+        type="laserscan_interpreter_node"
+        name="laserscan_interpreter"
+        args="--print_all_options
+              --subscribe_topic /scan_echoed
+              --publish_ema
+              --publish_objects_closest_point_markers
+              --publish_objects_velocity_arrows
+              --publish_objects_width_lines
+              --optimize_nr_scans_in_bank 0.5
+              --object_threshold_min_speed 0.1
+              --object_threshold_max_distance 8
+              --object_threshold_min_nr_points 4
+              --object_threshold_min_confidence 0.5
+              --object_threshold_edge_max_delta_range 0.2
+              --object_threshold_max_delta_width_in_points 20
+              --object_threshold_bank_tracking_max_delta_distance 0.4
+              $(arg laserscan_interpreter_extra_args)"
+        output="screen"
+        />
+  
+  <!-- Run rviz for visualization -->
+  <node pkg="rviz" 
+        type="rviz" 
+        name="rviz" 
+        args="--display-config $(find find_moving_objects)/rviz/moving_objects_bag.rviz"
+        required="true"
+        />
+
+  <!-- Run rosbag to play back the recording -->
+  <node pkg="rosbag"
+        type="play"
+        name="rosbag_play"
+        args="--wait-for-subscribers
+              --topics /scan
+              $(arg rosbag_extra_args)
+              --bags $(arg bag_path)/$(arg bag)"
+        required="$(arg rosbag_required)"
+        />
+
+</launch>
