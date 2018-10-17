@@ -2327,15 +2327,18 @@ inline void Bank::advanceIndex()
 // Init bank based on LaserScan msg
 long Bank::init(BankArgument bank_argument, sensor_msgs::LaserScan::ConstPtr msg)
 {
-  if (!bank_argument.sensor_frame_has_z_axis_forward && strstr(msg->header.frame_id.c_str(), "_optical") != NULL)
+  if (!bank_is_initialized)
   {
-    ROS_WARN_STREAM("The sensor frame (" << msg->header.frame_id.c_str() << ") seems to be a camera/optical frame. "
-                    "Perhaps sensor_frame_has_z_axis_forward should be set?");
-  }
-  else if (bank_argument.sensor_frame_has_z_axis_forward)
-  {
-    ROS_WARN_STREAM("Please note that setting sensor_frame_has_z_axis_forward will cause the ema and "
-                    "objects_closest_points messages to be shown incorrectly.");
+    if (!bank_argument.sensor_frame_has_z_axis_forward && strstr(msg->header.frame_id.c_str(), "_optical") != NULL)
+    {
+      ROS_WARN_STREAM("The sensor frame (" << msg->header.frame_id.c_str() << ") seems to be a camera/optical frame. "
+                      "Perhaps sensor_frame_has_z_axis_forward should be set?");
+    }
+    else if (bank_argument.sensor_frame_has_z_axis_forward)
+    {
+      ROS_WARN_STREAM("Please note that setting sensor_frame_has_z_axis_forward will cause the ema and "
+                      "objects_closest_points messages to be shown incorrectly.");
+    }
   }
   
   bank_argument.sensor_frame    = msg->header.frame_id;
@@ -2456,15 +2459,18 @@ long Bank::init(BankArgument bank_argument, sensor_msgs::PointCloud2::ConstPtr m
 {
   ROS_DEBUG("Init bank (%s)", msg->header.frame_id.c_str());
   bank_argument.sensor_frame = msg->header.frame_id;
-  if (!bank_argument.sensor_frame_has_z_axis_forward && strstr(msg->header.frame_id.c_str(), "_optical") != NULL)
+  if (!bank_is_initialized)
   {
-    ROS_WARN_STREAM("The sensor frame (" << msg->header.frame_id.c_str() << ") seems to be a camera/optical frame. "
-                    "Perhaps sensor_frame_has_z_axis_forward should be set?");
-  }
-  else if (bank_argument.sensor_frame_has_z_axis_forward)
-  {
-    ROS_WARN_STREAM("Please note that setting sensor_frame_has_z_axis_forward will cause the ema and "
-                    "objects_closest_points messages to be shown incorrectly.");
+    if (!bank_argument.sensor_frame_has_z_axis_forward && strstr(msg->header.frame_id.c_str(), "_optical") != NULL)
+    {
+      ROS_WARN_STREAM("The sensor frame (" << msg->header.frame_id.c_str() << ") seems to be a camera/optical frame. "
+                      "Perhaps sensor_frame_has_z_axis_forward should be set?");
+    }
+    else if (bank_argument.sensor_frame_has_z_axis_forward)
+    {
+      ROS_WARN_STREAM("Please note that setting sensor_frame_has_z_axis_forward will cause the ema and "
+                      "objects_closest_points messages to be shown incorrectly.");
+    }
   }
   
   if (bank_argument.points_per_scan <= 1)
