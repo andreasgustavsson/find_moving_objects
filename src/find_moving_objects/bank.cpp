@@ -136,12 +136,12 @@ BankArgument::BankArgument()
   velocity_arrow_ns = "velocity_arrow_ns";
   delta_position_line_ns = "delta_position_line_ns";
   width_line_ns = "width_line_ns";
-  topic_objects = "/moving_objects_arrays";
-  topic_ema = "/ema";
-  topic_objects_closest_point_markers = "/objects_closest_point_markers";
-  topic_objects_velocity_arrows = "/objects_velocity_arrows";
-  topic_objects_delta_position_lines = "/objects_delta_position_lines";
-  topic_objects_width_lines = "/objects_width_lines";
+  topic_objects = "moving_objects_arrays";
+  topic_ema = "ema";
+  topic_objects_closest_point_markers = "objects_closest_point_markers";
+  topic_objects_velocity_arrows = "objects_velocity_arrows";
+  topic_objects_delta_position_lines = "objects_delta_position_lines";
+  topic_objects_width_lines = "objects_width_lines";
   publish_buffer_size = 10;
   map_frame = "map";
   fixed_frame = "odom";
@@ -2071,6 +2071,7 @@ int Bank::getOffsetsAndBytes(BankArgument bank_argument, sensor_msgs::PointCloud
   }
   else
   {
+    ROS_ERROR("Could not determine offsets and bytes");
     return -1;
   }
 }
@@ -2220,6 +2221,13 @@ unsigned int Bank::putPoints(const sensor_msgs::PointCloud2::ConstPtr msg)
         }
       }
       
+      // Sanity check
+      if (isnan(x) || isnan(y) || isnan(z))
+      {
+        ROS_DEBUG_STREAM("Skipping point (" << x << "," << y << "," << z << ")");
+        continue;
+      }
+      
       // Another valid point
       added_points_out = added_points_out + 1;
       
@@ -2229,13 +2237,13 @@ unsigned int Bank::putPoints(const sensor_msgs::PointCloud2::ConstPtr msg)
       double point_angle_max;
       if (!bank_argument.sensor_frame_has_z_axis_forward)
       {
-        // Assume Z-axis is pointing up
+        // Assume Z-axis is pointing up, 0.02 <= x
         point_angle_min = atan((y - voxel_leaf_size_half) / x);
         point_angle_max = atan((y + voxel_leaf_size_half) / x);
       }
       else
       {
-        // Assume Y-axis is pointing down
+        // Assume Y-axis is pointing down, 0.02 <= z
         point_angle_min = atan((-x - voxel_leaf_size_half) / z);
         point_angle_max = atan((-x + voxel_leaf_size_half) / z);
       }
@@ -2519,6 +2527,7 @@ long Bank::addFirstMessage(sensor_msgs::PointCloud2::ConstPtr msg)
   // If no points were added, then redo the process for this message
   if (added_points == 0)
   {
+    ROS_WARN("Could not add any points from the PointCloud2 message");
     return -1;
   }
   
@@ -2548,6 +2557,7 @@ long Bank::addMessage(sensor_msgs::PointCloud2::ConstPtr msg)
   // If no points were added, then redo the process for this message
   if (added_points == 0)
   {
+    ROS_WARN("Could not add any points from the PointCloud2 message");
     return -1;
   }
   

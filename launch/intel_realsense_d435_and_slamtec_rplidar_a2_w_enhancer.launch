@@ -48,7 +48,7 @@
               --publish_objects_velocity_arrows
               --publish_objects_delta_position_lines
               --publish_objects_width_lines
-              --nr_scans_in_bank 8
+              --optimize_nr_scans_in_bank 0.5
               --object_threshold_min_speed 0.1
               --object_threshold_max_distance 8
               --object_threshold_min_nr_points 4
@@ -93,7 +93,7 @@
               --publish_objects_delta_position_lines
               --publish_objects_width_lines
               --velocity_arrows_use_sensor_frame
-              --nr_scans_in_bank 11
+              --optimize_nr_scans_in_bank 0.5
               --nr_points_per_scan_in_bank 360
               --voxel_leaf_size 0.01
               --threshold_z_min 0
