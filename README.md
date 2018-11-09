@@ -14,7 +14,7 @@ The package defines two executables which use the Bank; one for interpreting a l
 stream and one for interpreting a point cloud data stream. These are used in the provided launch 
 files.
 
-NOTE: If running the *_bag.launch file, then bags/*.bag.tar.gz must first be extracted to 
+NOTE: If running the \*_bag.launch file, then bags/\*.bag.tar.gz must first be extracted to 
       bags/*.bag. Also note that rosbag and rviz are used by the launch file.
 
 The values for the BankArgument variables, as specified by the two executables and by the launch 
