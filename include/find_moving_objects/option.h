@@ -85,6 +85,13 @@ private:
                  double,
                  std::string> value_max_;
                  
+  void setBoolValue(bool val) {value_ = val;}
+  void setIntValue(int val) {value_ = (long)val;}
+  void setLongValue(int val) {value_ = (long)val;}
+  void setLongValue(long val) {value_ = val;}
+  void setStringValue(std::string val) {value_ = val;}
+  void setDoubleValue(double val) {value_ = val;}
+                 
 public:
   /**
    * Creates a <code>string</code> option. 

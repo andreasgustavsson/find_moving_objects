@@ -31,7 +31,8 @@
                     UPDATE THIS ACCORDING TO YOUR OWN NEEDS -->
   <node pkg="find_moving_objects"
         type="example_frame_broadcaster_node"
-        name="frame_broadcaster" 
+        name="frame_broadcaster"
+        ns="frame_broadcaster"
         args="--print_all_options
               $(arg frame_broadcaster_extra_args)"
         output="screen"
@@ -40,7 +41,8 @@
   <!-- Run laserscan interpreter for lidar -->
   <node pkg="find_moving_objects"
         type="laserscan_interpreter_node"
-        name="laserscan_interpreter"
+        name="laserscan_interpreter_node"
+        ns="laserscan_interpreter"
         args="--print_all_options
               --subscribe_topic /scan
               --publish_ema
@@ -57,8 +59,9 @@
               --object_threshold_max_delta_width_in_points 20
               --object_threshold_bank_tracking_max_delta_distance 0.4
               $(arg laserscan_interpreter_extra_args)"
-          output="screen"
-        />
+          output="screen" >
+    <param name="topic_objects" value="/moving_objects" />
+  </node>
   
   <!-- Voxel filter to down-scale pointcloud2 -->
   <node pkg="nodelet" type="nodelet" name="pcl_manager" args="manager" output="screen" />
@@ -78,7 +81,8 @@
   <!-- Run pointcloud2 interpreter for camera -->
   <node pkg="find_moving_objects"
         type="pointcloud2_interpreter_node"
-        name="pointcloud2_interpreter"
+        name="pointcloud2_interpreter_node"
+        ns="pointcloud2_interpreter"
         args="--print_all_options
               --subscribe_topic /camera/depth/color/points/filtered
               --sensor_frame_has_z_axis_forward
@@ -106,19 +110,22 @@
               --object_threshold_max_delta_width_in_points 50
               --object_threshold_bank_tracking_max_delta_distance 0.4
               $(arg pointcloud2_interpreter_extra_args)"
-          output="screen"
-        />
+          output="screen" >
+    <param name="topic_objects" value="/moving_objects" />
+  </node>
   
   <!-- Run confidence enhancing node -->
   <node pkg="find_moving_objects"
         type="moving_objects_confidence_enhancer_node"
-        name="confidence_enhancer"
+        name="confidence_enhancer_node"
+        ns="confidence_enhancer"
         args="--print_all_options
               --publish_objects_closest_point_markers
               --publish_objects_velocity_arrows
               --ignore_z_map_coordinate_for_position"
-        output="screen"
-        />
+        output="screen" >
+    <param name="subscribe_topic" value="/moving_objects" />
+  </node>
   
   <!-- Run rviz for visualization -->
   <node pkg="rviz" 

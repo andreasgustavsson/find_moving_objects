@@ -248,6 +248,8 @@ void Option::scanArgs(int argc, char** argv, Option * options)
   bool print_given_options = false;
   bool print_all_options_values = false;
   
+  // Node handle
+  ros::NodeHandle n("~");
   
   // Print help and exit?
   for (unsigned int i=1; i<argc; ++i)
@@ -259,7 +261,6 @@ void Option::scanArgs(int argc, char** argv, Option * options)
       exit(0);
     }
   }
-  
   
   // Loop through command line arguments and adapt options[]
   for (unsigned int i=1; i<argc; ++i)
@@ -382,6 +383,130 @@ void Option::scanArgs(int argc, char** argv, Option * options)
     }
   }
   
+  // If option was not specified on the command line, then check if it is given on the parameter server
+  // If option was specified on the command line, then update/set its value on the parameter server
+  for (unsigned int i=0; i<nr_options_; ++i)
+  {
+    Option * o = &options[i];
+    char parameterNameWhole[o->getName().length()+1];
+    strcpy(parameterNameWhole, o->getName().c_str());
+    char * parameterName = &parameterNameWhole[0];
+    
+    // Remove initial dashes from option/paramter name
+    while (!(('a' <= parameterName[0] && parameterName[0] <= 'z') ||
+             ('z' <= parameterName[0] && parameterName[0] <= 'Z') || 
+             parameterName[0] == '~'))
+    {
+      parameterName = &parameterName[1];
+    }
+
+    // Resolve parameter name
+//     ROS_WARN_STREAM("Resolved parameter name: " << n.resolveName(parameterName));
+
+    
+    
+    
+//     ROS_WARN_STREAM("Looking at parameter: '" << parameterName << "'" << (o->getGiven() ? " (given)" : " (not given)") << " and (is" << (n.hasParam(parameterName) ? "" : " not") << ") at server" );
+//     char prefixedParameterName[2 + strlen(parameterName)];
+//     prefixedParameterName[0] = '~';
+//     strcpy(&prefixedParameterName[1], parameterName);
+//     parameterName = &prefixedParameterName[0];
+    
+    if (o->getGiven() || !n.hasParam(parameterName))
+    {
+      // Update value on parameter server
+      switch (o->getType())
+      {
+        case O_BOOL: 
+        {
+          bool value = o->getBoolValue();
+          n.setParam(parameterName, value);
+          break;
+        }
+        case O_LONG:
+        {
+          int value = o->getLongValue();
+          n.setParam(parameterName, value);
+          break;
+        }
+        case O_STRING:
+        {
+          std::string value = o->getStringValue();
+          n.setParam(parameterName, value);
+          break;
+        }
+        case O_FLOAT:
+        {
+          double value = o->getDoubleValue();
+          n.setParam(parameterName, value);
+          break;
+        }
+        default:
+        {
+          ROS_ERROR_STREAM("Set for unknown option type (" << o->getType() << "), this should not happen!");
+        }
+      }
+    }
+    else
+    {
+      // Get value from parameter server, it must exist based on the condition above!
+      // Here: !o->getGiven() && n.hasParam(parameterName)
+      bool ok;
+      switch (o->getType())
+      {
+        case O_BOOL:
+        {
+          bool value;
+          ok = n.getParam(parameterName, value);
+          if (ok)
+          {
+            o->setBoolValue(value);
+          }
+          break;
+        }
+        case O_LONG:
+        {
+          int value;
+          ok = n.getParam(parameterName, value);
+          if (ok)
+          {
+            o->setLongValue(value);
+          }
+          break;
+        }
+        case O_STRING:
+        {
+          std::string value;
+          ok = n.getParam(parameterName, value);
+          if (ok)
+          {
+            o->setStringValue(value);
+          }
+          break;
+        }
+        case O_FLOAT:
+        {
+          double value;
+          ok = n.getParam(parameterName, value);
+          if (ok)
+          {
+            o->setDoubleValue(value);
+          }
+          break;
+        }
+        default:
+        {
+          ROS_ERROR_STREAM("Get for unknown option type (" << o->getType() << "), this should not happen!");
+        }
+      }
+      
+      if (!ok)
+      {
+        ROS_ERROR_STREAM("Could not get the value for [" << parameterName << "] from the server");
+      }
+    }
+  }
+  
   // Print the values of all options
   if (print_all_options_values)
   {
@@ -451,4 +576,6 @@ void Option::scanArgs(int argc, char** argv, Option * options)
     }
   }
 }
+
+
 }

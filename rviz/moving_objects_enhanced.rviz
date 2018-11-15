@@ -513,7 +513,7 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.00999999978
       Style: Flat Squares
-      Topic: /pointcloud2_ema
+      Topic: /pointcloud2_interpreter/ema
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -541,16 +541,16 @@ Visualization Manager:
       Queue Size: 10
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.00999999978
+      Size (m): 0.0500000007
       Style: Flat Squares
-      Topic: /pointcloud2_objects_closest_point_markers
+      Topic: /pointcloud2_interpreter/objects_closest_point_markers
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
       Value: false
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /pointcloud2_objects_velocity_arrows
+      Marker Topic: /pointcloud2_interpreter/objects_velocity_arrows
       Name: CAMERA MarkerArray Velocity Arrows
       Namespaces:
         pointcloud2_velocity_arrow: true
@@ -558,7 +558,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /pointcloud2_objects_delta_position_lines
+      Marker Topic: /pointcloud2_interpreter/objects_delta_position_lines
       Name: CAMERA MarkerArray Delta Position_Lines
       Namespaces:
         pointcloud2_delta_position_line: true
@@ -566,7 +566,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /pointcloud2_objects_width_lines
+      Marker Topic: /pointcloud2_interpreter/objects_width_lines
       Name: CAMERA MarkerArray Width Lines
       Namespaces:
         pointcloud2_width_line: true
@@ -627,7 +627,7 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.00999999978
       Style: Flat Squares
-      Topic: /laserscan_ema
+      Topic: /laserscan_interpreter/ema
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -655,16 +655,16 @@ Visualization Manager:
       Queue Size: 10
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.00999999978
+      Size (m): 0.0500000007
       Style: Flat Squares
-      Topic: /laserscan_objects_closest_point_markers
+      Topic: /laserscan_interpreter/objects_closest_point_markers
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
       Value: false
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /laserscan_objects_velocity_arrows
+      Marker Topic: /laserscan_interpreter/objects_velocity_arrows
       Name: LIDAR MarkerArray Velocity Arrows
       Namespaces:
         laserscan_velocity_arrow: true
@@ -672,7 +672,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /laserscan_objects_delta_position_lines
+      Marker Topic: /laserscan_interpreter/objects_delta_position_lines
       Name: LIDAR MarkerArray Delta Position Lines
       Namespaces:
         laserscan_delta_position_line: true
@@ -680,7 +680,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /laserscan_objects_width_lines
+      Marker Topic: /laserscan_interpreter/objects_width_lines
       Name: LIDAR MarkerArray Width Lines
       Namespaces:
         laserscan_width_line: true
@@ -778,16 +778,16 @@ Visualization Manager:
       Queue Size: 10
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.00999999978
+      Size (m): 0.0500000007
       Style: Flat Squares
-      Topic: /fused_objects_closest_point_markers
+      Topic: /confidence_enhancer/fused_objects_closest_point_markers
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /fuser_objects_velocity_arrows
+      Marker Topic: /confidence_enhancer/fused_objects_velocity_arrows
       Name: ENHANCER MarkerArray Velocity Arrows
       Namespaces:
         fused_velocity_arrow: true

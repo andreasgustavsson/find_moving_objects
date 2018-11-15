@@ -120,7 +120,7 @@ Option g_options[] = {
          std::string("fused_objects_closest_point_markers")),
   Option(false, "--topic_objects_velocity_arrows", 
          "Topic for publishing position and velocity", 
-         std::string("fuser_objects_velocity_arrows")),
+         std::string("fused_objects_velocity_arrows")),
   Option(false, "--threshold_min_confidence", 
          "Minimum confidence of object for publishing it",
          0.6, 0.0, 1.0),

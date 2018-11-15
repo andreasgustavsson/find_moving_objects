@@ -48,6 +48,7 @@
   <node pkg="find_moving_objects"
         type="example_frame_broadcaster_node"
         name="frame_broadcaster" 
+        ns="frame_broadcaster"
         args="--print_all_options
               $(arg frame_broadcaster_extra_args)"
         output="screen"
@@ -62,7 +63,8 @@
   <!-- Run laserscan interpreter for lidar -->
   <node pkg="find_moving_objects"
         type="laserscan_interpreter_node"
-        name="laserscan_interpreter"
+        name="laserscan_interpreter_node"
+        ns="laserscan_interpreter"
         args="--print_all_options
               --subscribe_topic /scan_echoed
               --publish_ema

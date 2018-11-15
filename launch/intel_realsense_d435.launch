@@ -27,6 +27,7 @@
   <node pkg="find_moving_objects"
         type="example_frame_broadcaster_node"
         name="frame_broadcaster" 
+        ns="frame_broadcaster"
         args="--print_all_options
               $(arg frame_broadcaster_extra_args)"
         output="screen"
@@ -50,7 +51,8 @@
   <!-- Run pointcloud2 interpreter for camera -->
   <node pkg="find_moving_objects"
         type="pointcloud2_interpreter_node"
-        name="pointcloud2_interpreter"
+        name="pointcloud2_interpreter_node"
+        ns="pointcloud2_interpreter"
         args="--print_all_options
               --subscribe_topic /camera/depth/color/points/filtered
               --sensor_frame_has_z_axis_forward

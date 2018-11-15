@@ -5,7 +5,8 @@
 <!--   <env name="ROSCONSOLE_CONFIG_FILE" -->
 <!--        value="$(find find_moving_objects)/logger_config/logger_config_debug.config" /> -->
 
-  
+  <env name="ROSCONSOLE_FORMAT"
+       value="[${node}]: ${message}" />
   
   <!-- Command line arguments:
        Anything you specify on the command line has precedence over the values specified in this file -->
@@ -52,7 +53,8 @@
                     UPDATE THIS ACCORDING TO YOUR OWN NEEDS --> 
   <node pkg="find_moving_objects"
         type="example_frame_broadcaster_node"
-        name="frame_broadcaster" 
+        name="frame_broadcaster"
+        ns="frame_broadcaster"
         args="--print_all_options
               $(arg frame_broadcaster_extra_args)"
         output="screen"
@@ -71,11 +73,13 @@
         />
 
   <!-- Run laserscan interpreter for lidar -->
+<!-- subscribe_topic /scan_echoed -->
+
   <node pkg="find_moving_objects"
         type="laserscan_interpreter_node"
-        name="laserscan_interpreter"
+        name="laserscan_interpreter_node"
+        ns="laserscan_interpreter"
         args="--print_all_options
-              --subscribe_topic /scan_echoed
               --publish_ema
               --publish_objects_closest_point_markers
               --publish_objects_velocity_arrows
@@ -89,13 +93,15 @@
               --object_threshold_max_delta_width_in_points 20
               --object_threshold_bank_tracking_max_delta_distance 0.4
               $(arg laserscan_interpreter_extra_args)"
-        output="screen"
-        />
+        output="screen">
+    <param name="subscribe_topic" value="/scan_echoed" />
+  </node>
   
   <!-- Run pointcloud2 interpreter for voxel-filtered camera -->
   <node pkg="find_moving_objects"
         type="pointcloud2_interpreter_node"
-        name="pointcloud2_interpreter"
+        name="pointcloud2_interpreter_node"
+        ns="pointcloud2_interpreter"
         args="--print_all_options
               --subscribe_topic /camera/depth/color/points/filtered_echoed
               --sensor_frame_has_z_axis_forward
