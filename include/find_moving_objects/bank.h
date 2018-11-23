@@ -65,17 +65,17 @@ public:
   /**< The EMA weighting decrease coefficient---a value in <code>[0,1]</code>.
    * Initialized to 1.0 (i.e. no EMA). */
   
-  long nr_scans_in_bank; 
+  int nr_scans_in_bank; 
   /**< The number of scan messages stored in the bank.
    * Initialized to 11. */
   
-  long points_per_scan;  
+  int points_per_scan;  
   /**< The number of points per scan message. 
    *   For <code>sensor_msgs::LaserScan</code>, <code>ranges.size()</code> is used and cannot be changed; for 
    *   <code>sensor_msgs::PointCloud2</code>, a custom number, defining the resolution of the bank, should be specified.
    *   Initialized to 360. */
   
-  float angle_min; 
+  double angle_min; 
   /**< The smallest angle (in radians) defined by the scan points in the bank. 
    * For <code>sensor_msgs::LaserScan</code>, <code>angle_min</code> is used. 
    * For <code>sensor_msgs::PointCloud2</code>, this should be specified 
@@ -84,7 +84,7 @@ public:
    *  if larger, then there will be "empty" ranges in the beginning and end of the bank). 
    *  Initialized to -PI degrees*/
   
-  float angle_max; 
+  double angle_max; 
   /**< The largest angle (in radians) defined by the scan points in the bank. 
    * For <code>sensor_msgs::LaserScan</code>, <code>angle_max</code> is used. 
    * For <code>sensor_msgs::PointCloud2</code>, this should be specified 
@@ -106,7 +106,7 @@ public:
   /**< The maximum difference in range (meters) between two consecutive scan points belonging to the same object. 
    * Initialized to 0.15. */
   
-  long object_threshold_min_nr_points; 
+  int object_threshold_min_nr_points; 
   /**< The minimum number of consecutive scan points defining an object.
    * Initialized to 5. */
   
@@ -118,7 +118,7 @@ public:
   /**< The minimum speed in meters per second an object must have, in order to report it.
    * Initialized to 0.03. */
   
-  long object_threshold_max_delta_width_in_points; 
+  int object_threshold_max_delta_width_in_points; 
   /**< The maximum difference in width (in scan points) an object is allowed to have, 
    * between the oldest and newest scans in the bank, in order to report it.
    * Initialized to 5. */
@@ -223,7 +223,7 @@ public:
   /**< The topic on which to publish the messages showing the width of each found object using lines.
    * Initialized to <code>"/objects_width_lines"</code>. */
   
-  long publish_buffer_size; 
+  int publish_buffer_size; 
   /**< The size of each publish buffer. 
    * Initialized to 10. */
   
@@ -262,17 +262,17 @@ public:
   /**< The name of the <code>sensor_msgs::PointField</code> specifying the Z-coordinate.
    * Initialized to <code>"z"</code>. */
   
-  float PC2_voxel_leaf_size; 
+  double PC2_voxel_leaf_size; 
   /**< Approximate distance between two points (in meters) in the cloud. 
    * Initialized to 0.02 but, should most likely be calibrated. */
   
-  float PC2_threshold_z_min; 
+  double PC2_threshold_z_min; 
   /**< Do not account points with a Z-coordinate smaller than this. 
    * If <code>sensor_frame_has_z_axis_forward</code> is set, then the negated Y-coordinate is considered instead of the
    * Z-coordinate of the point, since the Y-axis is pointing down in that case.
    * Initialized to 0.1. */
   
-  float PC2_threshold_z_max; 
+  double PC2_threshold_z_max; 
   /**< Do not account points with a Z-coordinate larger than this. It is assumed that the Z-axis in the sensor frame is 
    * pointing up.
    * If <code>sensor_frame_has_z_axis_forward</code> is set, then the negated Y-coordinate is considered instead of the

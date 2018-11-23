@@ -37,7 +37,9 @@
 /* ROS */
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
-
+#ifdef NODELET
+#include <pluginlib/class_list_macros.h>
+#endif
 /* C/C++ */
 #include <iostream>
 #include <cmath>
@@ -45,14 +47,23 @@
 
 /* LOCAL INCLUDES */
 #include <find_moving_objects/bank.h>
-#include <find_moving_objects/PointCloud2InterpreterNode.h>
+#include <find_moving_objects/PointCloud2Interpreter.h>
+
+
+#ifdef NODELET
+/* TELL ROS ABOUT THIS NODELET PLUGIN */
+PLUGINLIB_EXPORT_CLASS(find_moving_objects::PointCloud2InterpreterNodelet, nodelet::Nodelet)
+#endif
+
 
 namespace find_moving_objects
 {
+
 /*
  * Standard Units of Measure and Coordinate Conventions:   http://www.ros.org/reps/rep-0103.html
  * Coordinate Frames for Mobile Platforms:                 http://www.ros.org/reps/rep-0105.html
  */
+
 
 /* CONFIDENCE CALCULATION FOR BANK */
 const double a = -10 / 3;
@@ -82,48 +93,88 @@ double Bank::calculateConfidence(const MovingObject & mo,
 }
 
 
-
 /* CONSTRUCTOR */
+#ifdef NODELET
+PointCloud2InterpreterNodelet::PointCloud2InterpreterNodelet()
+#endif
+#ifdef NODE
 PointCloud2InterpreterNode::PointCloud2InterpreterNode()
+#endif
 : received_messages(0),
   optimize_nr_scans_in_bank(0.0)
 {
+#ifdef NODELET
+  // Wait for time to become valid, then start bank
+  ros::Time::waitForValid();
+#endif
+  
   // Start collecting tf data
   bank = new find_moving_objects::Bank;
   
-  // Init
+#ifdef NODE
   onInit();
+#endif
 }
 
-
 /* DESTRUCTOR */
+#ifdef NODELET
+PointCloud2InterpreterNodelet::~PointCloud2InterpreterNodelet()
+#endif
+#ifdef NODE
 PointCloud2InterpreterNode::~PointCloud2InterpreterNode()
+#endif
 {
   delete bank;
 }
 
 
+
 /* CALLBACK FOR FIRST MESSAGE */
+#ifdef NODELET
+void PointCloud2InterpreterNodelet::pointCloud2CallbackFirst(const sensor_msgs::PointCloud2::ConstPtr & msg)
+#endif
+#ifdef NODE
 void PointCloud2InterpreterNode::pointCloud2CallbackFirst(const sensor_msgs::PointCloud2::ConstPtr & msg)
-{
+#endif
+{ 
   // Debug frame to see e.g. if we are dealing with an optical frame
+#ifdef NODELET
+  NODELET_DEBUG_STREAM("PointCloud2 sensor is using frame: " << msg->header.frame_id);
+#endif
+#ifdef NODE
   ROS_DEBUG_STREAM("PointCloud2 sensor is using frame: " << msg->header.frame_id);
+#endif
 
   // Init bank
   if (bank->init(bank_argument, msg) == 0)
   {
     // Use the other callback from now on
+#ifdef NODELET
+    ros::NodeHandle nh = getNodeHandle();
+#endif
+#ifdef NODE
     ros::NodeHandle nh;
+#endif
     sub = nh.subscribe(subscribe_topic,
                        subscribe_buffer_size,
+#ifdef NODELET
+                       &PointCloud2InterpreterNodelet::pointCloud2Callback, 
+#endif
+#ifdef NODE
                        &PointCloud2InterpreterNode::pointCloud2Callback, 
+#endif
                        this);
   }
 }
 
 
 /* CALLBACK FOR ALL BUT THE FIRST MESSAGE */
+#ifdef NODELET
+void PointCloud2InterpreterNodelet::pointCloud2Callback(const sensor_msgs::PointCloud2::ConstPtr & msg)
+#endif
+#ifdef NODE
 void PointCloud2InterpreterNode::pointCloud2Callback(const sensor_msgs::PointCloud2::ConstPtr & msg)
+#endif
 {
   // Can message be added to bank?
   if (bank->addMessage(msg) != 0)
@@ -138,22 +189,42 @@ void PointCloud2InterpreterNode::pointCloud2Callback(const sensor_msgs::PointClo
 
 
 /* CALLBACK FOR WAITING UNTIL THE FIRST MESSAGE WAS RECEIVED - HZ CALCULATION */
-void PointCloud2InterpreterNode::waitForFirstMessageCallback(const sensor_msgs::PointCloud2::ConstPtr & msg) 
+#ifdef NODELET
+void PointCloud2InterpreterNodelet::waitForFirstMessageCallback(const sensor_msgs::PointCloud2::ConstPtr & msg) 
+#endif
+#ifdef NODE
+void PointCloud2InterpreterNode::waitForFirstMessageCallback(const sensor_msgs::PointCloud2::ConstPtr & msg)
+#endif
 {
   // Set start time
   start_time = ros::Time::now().toSec();
   
   // Update subscriber with new callback
+#ifdef NODELET
+  ros::NodeHandle nh = getNodeHandle();
+#endif
+#ifdef NODE
   ros::NodeHandle nh;
+#endif
   sub = nh.subscribe(subscribe_topic,
                        subscribe_buffer_size,
+#ifdef NODELET
+                       &PointCloud2InterpreterNodelet::hzCalculationCallback,
+#endif
+#ifdef NODE
                        &PointCloud2InterpreterNode::hzCalculationCallback,
+#endif
                        this);
 }
 
 
 /* CALLBACK FOR HZ CALCULATION */
+#ifdef NODELET
+void PointCloud2InterpreterNodelet::hzCalculationCallback(const sensor_msgs::PointCloud2::ConstPtr & msg)
+#endif
+#ifdef NODE
 void PointCloud2InterpreterNode::hzCalculationCallback(const sensor_msgs::PointCloud2::ConstPtr & msg)
+#endif
 {
   // spin until target is reached
   received_messages++;
@@ -176,8 +247,21 @@ void PointCloud2InterpreterNode::hzCalculationCallback(const sensor_msgs::PointC
       bank_argument.nr_scans_in_bank = 2;
     }
     
+#ifdef NODELET
+    NODELET_INFO_STREAM("Topic " << subscribe_topic << " has rate " << hz << "Hz" << 
+                        " (based on " << received_messages << " msgs during " << elapsed_time << " seconds)");
+    NODELET_INFO_STREAM("Optimized bank size is " << bank_argument.nr_scans_in_bank);
+    
+    // Update subscriber with new callback
+    ros::NodeHandle nh = getNodeHandle();
+    sub = nh.subscribe(subscribe_topic,
+                       subscribe_buffer_size,
+                       &PointCloud2InterpreterNodelet::pointCloud2CallbackFirst,
+                       this);
+#endif
+#ifdef NODE
     ROS_INFO_STREAM("Topic " << subscribe_topic << " has rate " << hz << "Hz" << 
-                    " (based on " << received_messages << " msgs during " << elapsed_time << " seconds)");
+                        " (based on " << received_messages << " msgs during " << elapsed_time << " seconds)");
     ROS_INFO_STREAM("Optimized bank size is " << bank_argument.nr_scans_in_bank);
     
     // Update subscriber with new callback
@@ -186,16 +270,26 @@ void PointCloud2InterpreterNode::hzCalculationCallback(const sensor_msgs::PointC
                        subscribe_buffer_size,
                        &PointCloud2InterpreterNode::pointCloud2CallbackFirst,
                        this);
+#endif
   }
 }
 
 
-/* INIT */
+/* ENTRY POINT FOR NODELET AND INIT FOR NODE */
+#ifdef NODELET
+void PointCloud2InterpreterNodelet::onInit()
+{
+  // Node handles
+  ros::NodeHandle nh = getNodeHandle();
+  ros::NodeHandle nh_priv = getPrivateNodeHandle();
+#endif
+#ifdef NODE
 void PointCloud2InterpreterNode::onInit()
 {
   // Node handles
   ros::NodeHandle nh;
   ros::NodeHandle nh_priv("~");
+#endif
   
   // Init bank_argument using parameters
   nh_priv.param("subscribe_topic", subscribe_topic, default_subscribe_topic);
@@ -247,22 +341,36 @@ void PointCloud2InterpreterNode::onInit()
   nh_priv.param("threshold_z_min", bank_argument.PC2_threshold_z_min, default_threshold_z_min);
   nh_priv.param("threshold_z_max", bank_argument.PC2_threshold_z_max, default_threshold_z_max);
   
+  nh_priv.setParam("dummy", 0.0);
+  
   // Z threshold sanity check
   if (bank_argument.PC2_threshold_z_max < bank_argument.PC2_threshold_z_min)
   {
     std::string err = "threshold_z_max cannot be smaller than threshold_z_min";
+#ifdef NODELET
+    NODELET_ERROR("%s", err.c_str());
+#endif
+#ifdef NODE
     ROS_ERROR("%s", err.c_str());
+#endif
     ROS_BREAK();
   }
   
   // Optimize bank size?
   nh_priv.param("optimize_nr_scans_in_bank", optimize_nr_scans_in_bank, default_optimize_nr_scans_in_bank);
+  
+  // If optimize_nr_scans_in_bank != 0, then yes
   if (optimize_nr_scans_in_bank != 0.0)
   {
     // Wait for first message to arrive
     sub = nh.subscribe(subscribe_topic,
                        subscribe_buffer_size,
+#ifdef NODELET
+                       &PointCloud2InterpreterNodelet::waitForFirstMessageCallback,
+#endif
+#ifdef NODE
                        &PointCloud2InterpreterNode::waitForFirstMessageCallback,
+#endif
                        this);
   }
   else
@@ -270,15 +378,19 @@ void PointCloud2InterpreterNode::onInit()
     // Subscribe to the sensor topic using first callback
     sub = nh.subscribe(subscribe_topic,
                        subscribe_buffer_size,
+#ifdef NODELET
+                       &PointCloud2InterpreterNodelet::pointCloud2CallbackFirst,
+#endif
+#ifdef NODE
                        &PointCloud2InterpreterNode::pointCloud2CallbackFirst,
+#endif
                        this);
   }
 }
 
 } // namespace find_moving_objects
 
-
-
+#ifdef NODE
 using namespace find_moving_objects;
 
 /* ENTRY POINT */
@@ -295,3 +407,4 @@ int main (int argc, char ** argv)
 
   return 0;
 }
+#endif

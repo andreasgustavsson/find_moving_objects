@@ -21,26 +21,26 @@
        />
   
   
-  
   <!-- Frames broadcaster - avoid tf transformation errors by publishing the relation between the involved frames
                     UPDATE THIS ACCORDING TO YOUR OWN NEEDS -->
   <node pkg="find_moving_objects"
         type="example_frame_broadcaster_node"
-        name="frame_broadcaster" 
+        name="frame_broadcaster"
         ns="frame_broadcaster"
         args="--print_all_options
               $(arg frame_broadcaster_extra_args)"
         output="screen"
         />
   
+  <!-- Run Intel Realsense D435 and manager, called "realsense2_camera_manager" -->
+  <include file="$(find realsense2_camera)/launch/rs_camera.launch">
+           <arg name="enable_pointcloud" value="true"/>
+           <arg name="align_depth" value="true"/>
+           <arg name="enable_sync" value="true"/>
+  </include>
+  
   <!-- Voxel filter to down-scale pointcloud2 -->
-<!--   <node pkg="nodelet" type="nodelet" name="pcl_manager" args="manager" output="screen" /> -->
-  <node pkg="nodelet" 
-        type="nodelet" 
-        name="voxel_grid" 
-        ns="camera"
-        args="load pcl/VoxelGrid realsense2_camera_manager" 
-        output="screen">
+<!--  <node pkg="nodelet" type="nodelet" ns="camera" name="voxel_grid" args="load pcl/VoxelGrid realsense2_camera_manager" output="screen">
     <remap from="~input" to="/camera/depth/color/points" />
     <remap from="~output" to="/camera/depth/color/points/filtered" />
     <rosparam>
@@ -49,17 +49,17 @@
       filter_limit_max: 6.5
       filter_limit_negative: False
       leaf_size: 0.01
-<!--       output_frame: camera_link -->
     </rosparam>
-  </node>
+  </node>-->
   
-  <!-- Run pointcloud2 interpreter for camera -->
-  <node pkg="find_moving_objects"
-        type="pointcloud2_interpreter_node"
-        name="pointcloud2_interpreter_node"
+  <!-- Run pointcloud2 interpreter for camera in nodelet -->
+  <node pkg="nodelet"
+        type="nodelet"
+        name="pointcloud2_interpreter_nodelet"
+        args="load find_moving_objects/PointCloud2InterpreterNodelet realsense2_camera_manager"
         ns="camera"
         output="screen" >
-    <param name="subscribe_topic"                                   type="str"    value="/camera/depth/color/points/filtered" />
+    <param name="subscribe_topic"                                   type="str"    value="/camera/depth/color/points" />
     <param name="subscribe_buffer_size"                             type="int"    value="1" />
     <param name="sensor_frame_has_z_axis_forward"                   type="bool"   value="true" />
     <param name="base_frame"                                        type="str"    value="base_link" />
@@ -71,7 +71,7 @@
     <param name="publish_objects_velocity_arrows"                   type="bool"   value="true" />
     <param name="publish_objects_delta_position_lines"              type="bool"   value="true" />
     <param name="publish_objects_width_lines"                       type="bool"   value="true" />
-    <param name="velocity_arrows_use_sensor_frame"                  type="bool"   value="false" />
+    <param name="velocity_arrows_use_sensor_frame"                  type="bool"   value="true" />
     <param name="optimize_nr_scans_in_bank"                         type="double" value="0.5" />
     <param name="nr_points_per_scan_in_bank"                        type="int"    value="360" />
     <param name="voxel_leaf_size"                                   type="double" value="0.01" />
@@ -86,19 +86,50 @@
     <param name="object_threshold_bank_tracking_max_delta_distance" type="double" value="0.4" />  
   </node>
   
+  
+  
+  <!-- Run Slamtec rpLidar A2 -->
+  <include ns="lidar" file="$(find rplidar_ros)/launch/rplidar.launch">
+  </include>
+  
+  <!-- rplidar is not run inside nodelet, but we test the nodelet implementation of the laserscan interpreter here -->
+  <node pkg="nodelet" type="nodelet" ns="lidar" name="lidar_manager" args="manager" output="screen" />
+  
+  <!-- Run laserscan interpreter for lidar in nodelet -->
+  <node pkg="nodelet"
+        type="nodelet"
+        name="laserscan_interpreter_nodelet"
+        args="load find_moving_objects/LaserScanInterpreterNodelet lidar_manager"
+        ns="lidar"
+        output="screen" >
+    <param name="subscribe_topic"                                   type="str"    value="/lidar/scan" />
+    <param name="subscribe_buffer_size"                             type="int"    value="1" />
+    <param name="base_frame"                                        type="str"    value="base_link" />
+    <param name="fixed_frame"                                       type="str"    value="odom" />
+    <param name="map_frame"                                         type="str"    value="map" />
+    <param name="publish_ema"                                       type="bool"   value="true" />
+    <param name="ema_alpha"                                         type="double" value="1.0" />
+    <param name="publish_objects_closest_point_markers"             type="bool"   value="true" />
+    <param name="publish_objects_velocity_arrows"                   type="bool"   value="true" />
+    <param name="publish_objects_delta_position_lines"              type="bool"   value="true" />
+    <param name="publish_objects_width_lines"                       type="bool"   value="true" />
+    <param name="velocity_arrows_use_sensor_frame"                  type="bool"   value="true" />
+    <param name="optimize_nr_scans_in_bank"                         type="double" value="0.5" />
+    <param name="object_threshold_min_speed"                        type="double" value="0.03" />
+    <param name="object_threshold_max_distance"                     type="double" value="6.5" />
+    <param name="object_threshold_min_nr_points"                    type="int"    value="4" />
+    <param name="object_threshold_min_confidence"                   type="double" value="0.5" />
+    <param name="object_threshold_edge_max_delta_range"             type="double" value="0.15" />
+    <param name="object_threshold_max_delta_width_in_points"        type="int"    value="50" />
+    <param name="object_threshold_bank_tracking_max_delta_distance" type="double" value="0.4" />  
+  </node>
+  
+  
   <!-- Run rviz for visualization -->
   <node pkg="rviz" 
         type="rviz" 
         name="rviz" 
-        args="--display-config $(find find_moving_objects)/rviz/moving_objects.rviz"
+        args="--display-config $(find find_moving_objects)/rviz/moving_objects_nodelet.rviz"
         required="true"
         />
-  
-  <!-- Run Intel Realsense D435 -->
-  <include file="$(find realsense2_camera)/launch/rs_camera.launch">
-           <arg name="enable_pointcloud" value="true"/>
-           <arg name="align_depth" value="true"/>
-           <arg name="enable_sync" value="true"/>
-  </include>
-  
 </launch>

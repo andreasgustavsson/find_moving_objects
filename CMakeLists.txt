@@ -9,18 +9,23 @@ project(find_moving_objects)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   roscpp 
+  nodelet
   tf 
-  topic_tools
+#   topic_tools
   message_generation 
   sensor_msgs 
   visualization_msgs 
-  geometry_msgs 
+  geometry_msgs
 )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 find_package(Boost REQUIRED)
 
+# Use features from C++ 11
+if(NOT WIN32)
+  add_compile_options(-std=c++11)
+endif()
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -111,6 +116,7 @@ catkin_package(
  INCLUDE_DIRS include
  LIBRARIES find_moving_objects
  CATKIN_DEPENDS roscpp 
+                nodelet
                 tf 
                 message_runtime 
                 sensor_msgs 
@@ -131,8 +137,8 @@ include_directories(
 )
 
 ## Declare a C++ library
-add_library(option  src/${PROJECT_NAME}/option.cpp)
-add_library(hz_calculator  src/${PROJECT_NAME}/hz_calculator.cpp)
+# add_library(option  src/${PROJECT_NAME}/option.cpp)
+# add_library(hz_calculator  src/${PROJECT_NAME}/hz_calculator.cpp)
 add_library(find_moving_objects  src/${PROJECT_NAME}/bank.cpp)
 
 ## Add cmake target dependencies of the library
@@ -145,8 +151,14 @@ add_dependencies(find_moving_objects ${PROJECT_NAME}_generate_messages)
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/${PROJECT_NAME}_node.cpp)
-add_executable(laserscan_interpreter_node src/laserscan_interpreter_node.cpp)
-add_executable(pointcloud2_interpreter_node src/pointcloud2_interpreter_node.cpp)
+add_executable(laserscan_interpreter_node src/laserscan_interpreter.cpp)
+add_library(LaserScanInterpreterNodelet src/laserscan_interpreter.cpp)
+add_executable(pointcloud2_interpreter_node src/pointcloud2_interpreter.cpp)
+add_library(PointCloud2InterpreterNodelet src/pointcloud2_interpreter.cpp)
+target_compile_options(laserscan_interpreter_node PRIVATE -DNODE)
+target_compile_options(LaserScanInterpreterNodelet PRIVATE -DNODELET)
+target_compile_options(pointcloud2_interpreter_node PRIVATE -DNODE)
+target_compile_options(PointCloud2InterpreterNodelet PRIVATE -DNODELET)
 add_executable(moving_objects_confidence_enhancer_node src/moving_objects_confidence_enhancer_node.cpp)
 add_executable(example_frame_broadcaster_node src/example_frame_broadcaster_node.cpp)
 add_executable(example_d435_voxel_echoer_node src/example_d435_voxel_echoer_node.cpp)
@@ -161,13 +173,25 @@ add_executable(example_rplidar_echoer_node src/example_rplidar_echoer_node.cpp)
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-add_dependencies(laserscan_interpreter_node option find_moving_objects hz_calculator)
-add_dependencies(pointcloud2_interpreter_node option find_moving_objects hz_calculator)
+
+# add_dependencies(laserscan_interpreter_node option find_moving_objects hz_calculator)
+# add_dependencies(LaserScanInterpreterNodelet option find_moving_objects hz_calculator)
+# add_dependencies(pointcloud2_interpreter_node option find_moving_objects hz_calculator)
+# add_dependencies(PointCloud2InterpreterNodelet option find_moving_objects hz_calculator)
+# add_dependencies(moving_objects_confidence_enhancer_node ${PROJECT_NAME}_generate_messages)
+# add_dependencies(moving_objects_confidence_enhancer_node option)
+# add_dependencies(example_frame_broadcaster_node option)
+# add_dependencies(example_d435_voxel_echoer_node option)
+# add_dependencies(example_rplidar_echoer_node option)
+add_dependencies(laserscan_interpreter_node option find_moving_objects)
+add_dependencies(LaserScanInterpreterNodelet option find_moving_objects)
+add_dependencies(pointcloud2_interpreter_node option find_moving_objects)
+add_dependencies(PointCloud2InterpreterNodelet option find_moving_objects)
 add_dependencies(moving_objects_confidence_enhancer_node ${PROJECT_NAME}_generate_messages)
-add_dependencies(moving_objects_confidence_enhancer_node option)
-add_dependencies(example_frame_broadcaster_node option)
-add_dependencies(example_d435_voxel_echoer_node option)
-add_dependencies(example_rplidar_echoer_node option)
+# add_dependencies(moving_objects_confidence_enhancer_node option)
+# add_dependencies(example_frame_broadcaster_node option)
+# add_dependencies(example_d435_voxel_echoer_node)
+# add_dependencies(example_rplidar_echoer_node)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(
@@ -176,42 +200,58 @@ find_moving_objects
   m
 )
 
-target_link_libraries(
-hz_calculator
-  ${catkin_LIBRARIES}
-)
+# target_link_libraries(
+# hz_calculator
+#   ${catkin_LIBRARIES}
+# )
 
-target_link_libraries(
-option
-  ${catkin_LIBRARIES}
-)
+# target_link_libraries(
+# option
+#   ${catkin_LIBRARIES}
+# )
 
 target_link_libraries(
 laserscan_interpreter_node
   ${catkin_LIBRARIES}
-  option
+#   option
   find_moving_objects
-  hz_calculator
+#   hz_calculator
+)
+
+target_link_libraries(
+LaserScanInterpreterNodelet
+  ${catkin_LIBRARIES}
+#   option
+  find_moving_objects
+#   hz_calculator
+)
+
+target_link_libraries(
+PointCloud2InterpreterNodelet
+  ${catkin_LIBRARIES}
+#   option
+  find_moving_objects
+#   hz_calculator
 )
 
 target_link_libraries(
 pointcloud2_interpreter_node
   ${catkin_LIBRARIES}
-  option
+#   option
   find_moving_objects
-  hz_calculator
+#   hz_calculator
 )
 
 target_link_libraries(
 moving_objects_confidence_enhancer_node
   ${catkin_LIBRARIES}
-  option
+#   option
 )
 
 target_link_libraries(
 example_frame_broadcaster_node
   ${catkin_LIBRARIES}
-  option
+#   option
 )
 
 target_link_libraries(

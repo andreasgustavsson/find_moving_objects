@@ -57,7 +57,6 @@
 #include <pthread.h>
 
 /* Local includes */
-#include <find_moving_objects/option.h>
 #include <find_moving_objects/MovingObject.h>
 #include <find_moving_objects/MovingObjectArray.h>
 
@@ -72,97 +71,6 @@ const double TWO_PI = 2 * M_PI;
 
 /* HANDLE TO THIS NODE */
 ros::NodeHandle * g_node;
-
-
-/* USER OPTIONS */
-Option g_options[] = {
-  Option(false, "--verbose", 
-         "Verbose output", 
-         false),
-  Option(false, "--print_received_objects", 
-         "Print the objects received", 
-         false),
-  Option(false, "--subscribe_buffer_size", 
-         "Subscription queue size", 
-         10, 1, 1000),
-  Option(false, "--subscribe_topic", 
-         "Topic on which moving objects to fuse are published", 
-         std::string("moving_objects")),
-  Option(false, "--publish_buffer_size", 
-         "Publishing queue size", 
-         10, 1, 1000),
-  Option(false, "--no_publish_objects", 
-         "Do not publish any MovingObjectArray messages", 
-         false),
-  Option(false, "--publish_objects_closest_point_markers", 
-         "Publish closest points of each object as a LaserScan message", 
-         false),
-  Option(false, "--publish_objects_velocity_arrows", 
-         "Publish position (arrow base) and velocity (arrow length) of objects as a MarkerArray message", 
-         false),
-  Option(false, "--velocity_arrows_use_full_gray_scale", 
-         "Shift color/confidence of arrow to full gray scale (white is high confidence)", 
-         false),
-  Option(false, "--velocity_arrows_use_sensor_frame", 
-         "Show velocity of object in relation to the sensor seeing it instead of map", 
-         false),
-  Option(false, "--velocity_arrows_use_base_frame", 
-         "Show velocity of object in base frame instead of map", 
-         false),
-  Option(false, "--velocity_arrows_use_fixed_frame", 
-         "Show velocity of object in fixed frame instead of map", 
-         false),
-  Option(false, "--topic_moving_objects_enhanced", 
-         "Topic for publishing MovingObjectArray messages with enhanced confidences for objects", 
-         std::string("moving_objects_enhanced")),
-  Option(false, "--topic_objects_closest_point_markers", 
-         "Topic for publishing closest points of the objects", 
-         std::string("fused_objects_closest_point_markers")),
-  Option(false, "--topic_objects_velocity_arrows", 
-         "Topic for publishing position and velocity", 
-         std::string("fused_objects_velocity_arrows")),
-  Option(false, "--threshold_min_confidence", 
-         "Minimum confidence of object for publishing it",
-         0.6, 0.0, 1.0),
-  Option(false, "--threshold_max_delta_time_for_different_sources", 
-         "Maximum time difference for messages from different sources considered for fusion",
-         0.1, 0.0, std::numeric_limits<double>::max()),
-  Option(false, "--threshold_max_delta_position_line", 
-         "Maximum offset from current position when trying to fuse with object seen by a different source", 
-         0.1, 0.0, 10.0),
-  Option(false, "--threshold_max_delta_velocity", 
-         "Maximum offset from current velocity when trying to fuse with object seen by a different source",
-         0.1, 0.0, 10.0),
-  Option(false, "--ignore_z_map_coordinate_for_position",
-         "Ignore the z cooridnate in the map position when comparing positions between objects",
-         false),
-};
-
-
-/* USER OPTION INDICES FOR EASY ACCESS */
-typedef enum {
-  O_I_VERBOSE = 0,
-  O_I_PRINT_RECEIVED_OBJECTS,
-  O_I_SUBSCRIBE_BUFFER_SIZE,
-  O_I_SUBSCRIBE_TOPIC,
-  O_I_PUBLISH_BUFFER_SIZE,
-  O_I_NO_PUBLISH_OBJECTS,
-  O_I_PUBLISH_OBJECTS_CLOSEST_POINT_MARKERS,
-  O_I_PUBLISH_OBJECTS_VELOCITY_ARROWS,
-  O_I_VELOCITY_ARROWS_USE_FULL_GRAY_SCALE,
-  O_I_VELOCITY_ARROWS_USE_SENSOR_FRAME,
-  O_I_VELOCITY_ARROWS_USE_BASE_FRAME,
-  O_I_VELOCITY_ARROWS_USE_FIXED_FRAME,
-  O_I_TOPIC_MOVING_OBJECTS_ENHANCED,
-  O_I_TOPIC_OBJECTS_CLOSEST_POINT_MARKERS,
-  O_I_TOPIC_OBJECTS_VELOCITY_ARROWS,
-  O_I_THRESHOLD_MIN_CONFIDENCE,
-  O_I_THRESHOLD_MAX_DELTA_TIME_FOR_DIFFERENT_SOURCES,
-  O_I_THRESHOLD_MAX_DELTA_POSITION,
-  O_I_THRESHOLD_MAX_DELTA_VELOCITY,
-  O_I_IGNORE_Z_MAP_COORDINATE_FOR_POSITION,
-  NR_OPTIONS
-} option_index_t;
 
 
 /* PUBLISHERS */
@@ -242,33 +150,60 @@ void moaCallback(const find_moving_objects::MovingObjectArray::ConstPtr & msg)
 /* WORKER THREAD */
 void * moaHandlerBody(void * arg)
 {
-  // Read user options
-  const bool verbose = g_options[O_I_VERBOSE].getBoolValue();
-  const bool print_received_objects = g_options[O_I_PRINT_RECEIVED_OBJECTS].getBoolValue() || verbose;
-  const bool publish_objects_closest_point_markers = 
-    g_options[O_I_PUBLISH_OBJECTS_CLOSEST_POINT_MARKERS].getBoolValue();
-  const bool publish_objects = ! g_options[O_I_NO_PUBLISH_OBJECTS].getBoolValue();
-  const bool publish_objects_velocity_arrows = g_options[O_I_PUBLISH_OBJECTS_VELOCITY_ARROWS].getBoolValue();
-  const bool velocity_arrows_use_full_gray_scale = g_options[O_I_VELOCITY_ARROWS_USE_FULL_GRAY_SCALE].getBoolValue();
+  // Private nodehandle
+  ros::NodeHandle nh_priv("~");
+  
+  // Read parameters
+  bool verbose;
+  bool print_received_objects;
+  bool publish_objects;
+  bool publish_objects_closest_point_markers;
+  bool publish_objects_velocity_arrows;
+  bool velocity_arrows_use_full_gray_scale;
+  bool velocity_arrows_use_sensor_frame_param;
+  bool velocity_arrows_use_base_frame_param;
+  bool velocity_arrows_use_fixed_frame_param;
+  std::string topic_moving_objects_enhanced;
+  std::string topic_objects_closest_point_markers;
+  std::string topic_objects_velocity_arrows;
+  double threshold_min_confidence;
+  double threshold_max_delta_time_for_different_sources;
+  double threshold_max_delta_position;
+  double threshold_max_delta_velocity;
+  bool ignore_z_map_coordinate_for_position;
+  nh_priv.param("verbose", verbose, false);
+  nh_priv.param("print_received_objects", print_received_objects, false);
+  nh_priv.param("publish_objects", publish_objects, true);
+  nh_priv.param("publish_objects_closest_point_markers", publish_objects_closest_point_markers, false);
+  nh_priv.param("publish_objects_velocity_arrows", publish_objects_velocity_arrows, false);
+  nh_priv.param("velocity_arrows_use_full_gray_scale", velocity_arrows_use_full_gray_scale, false);
+  nh_priv.param("velocity_arrows_use_sensor_frame", velocity_arrows_use_sensor_frame_param, false);
+  nh_priv.param("velocity_arrows_use_base_frame", velocity_arrows_use_base_frame_param, false);
+  nh_priv.param("velocity_arrows_use_fixed_frame", velocity_arrows_use_fixed_frame_param, false);
+  nh_priv.param("topic_moving_objects_enhanced", topic_moving_objects_enhanced, std::string("moving_objects_enhanced"));
+  nh_priv.param("topic_objects_closest_point_markers", topic_objects_closest_point_markers, std::string("objects_closest_points_markers"));
+  nh_priv.param("topic_objects_velocity_arrows", topic_objects_velocity_arrows, std::string("objects_velocity_arrows"));
+  nh_priv.param("threshold_min_confidence", threshold_min_confidence, 0.0);
+  nh_priv.param("threshold_max_delta_time_for_different_sources", threshold_max_delta_time_for_different_sources, 0.2);
+  nh_priv.param("threshold_max_delta_position", threshold_max_delta_position, 0.1);
+  nh_priv.param("threshold_max_delta_velocity", threshold_max_delta_velocity, 0.1);
+  nh_priv.param("ignore_z_map_coordinate_for_position", ignore_z_map_coordinate_for_position, false);
+  
+  
+  
   bool velocity_arrows_use_sensor_frame = false;
   bool velocity_arrows_use_base_frame = false;
   bool velocity_arrows_use_fixed_frame = false;
-  if      (g_options[O_I_VELOCITY_ARROWS_USE_SENSOR_FRAME].getBoolValue())
+  if      (velocity_arrows_use_sensor_frame_param)
     velocity_arrows_use_sensor_frame = true;
-  else if (g_options[O_I_VELOCITY_ARROWS_USE_BASE_FRAME].getBoolValue())
+  else if (velocity_arrows_use_base_frame_param)
     velocity_arrows_use_base_frame = true;
-  else if (g_options[O_I_VELOCITY_ARROWS_USE_FIXED_FRAME].getBoolValue())
+  else if (velocity_arrows_use_fixed_frame_param)
     velocity_arrows_use_fixed_frame = true;
-  const double threshold_min_confidence = g_options[O_I_THRESHOLD_MIN_CONFIDENCE].getDoubleValue();
-  const double threshold_max_delta_time_for_different_sources = 
-    g_options[O_I_THRESHOLD_MAX_DELTA_TIME_FOR_DIFFERENT_SOURCES].getDoubleValue();
-  const double threshold_max_delta_position_line = 
-    g_options[O_I_THRESHOLD_MAX_DELTA_POSITION].getDoubleValue();
-  const double threshold_max_delta_position_line_squared = threshold_max_delta_position_line * 
-                                                           threshold_max_delta_position_line;
-  const double threshold_max_delta_velocity = g_options[O_I_THRESHOLD_MAX_DELTA_VELOCITY].getDoubleValue();
+  const double threshold_max_delta_position_line_squared = threshold_max_delta_position * 
+                                                           threshold_max_delta_position;
   const double threshold_max_delta_velocity_squared = threshold_max_delta_velocity * threshold_max_delta_velocity;
-  const bool ignore_z_map_coordinate_for_position = g_options[O_I_IGNORE_Z_MAP_COORDINATE_FOR_POSITION].getBoolValue();
+  
   
   // Local message pointer
   find_moving_objects::MovingObjectArray::ConstPtr msg_sender;
@@ -614,23 +549,29 @@ int main(int argc, char** argv)
   // Init ROS
   ros::init(argc, argv, "mo_confidence_enhancer", ros::init_options::AnonymousName);
   g_node = new ros::NodeHandle;
+  ros::NodeHandle nh_priv("~");
   
   // Wait for time to become valid
   ros::Time::waitForValid();
   
-  // Scan arguments
-  Option::scanArgs(argc, argv, g_options);
-  
   // Init publisher
+  std::string topic_moving_objects_enhanced;
+  std::string topic_objects_velocity_arrows;
+  std::string topic_objects_closest_points_markers;
+  int publish_buffer_size;
+  nh_priv.param("topic_moving_objects_enhanced", topic_moving_objects_enhanced, std::string("moving_objects_enhanced"));
+  nh_priv.param("topic_objects_velocity_arrows", topic_objects_velocity_arrows, std::string("objects_velocity_arrows"));
+  nh_priv.param("topic_objects_closest_points_markers", topic_objects_closest_points_markers, std::string("objects_closest_points_markers"));
+  nh_priv.param("publish_buffer_size", publish_buffer_size, 2);
   g_pub_moaf = g_node->advertise<find_moving_objects::MovingObjectArray>
-                              (g_options[O_I_TOPIC_MOVING_OBJECTS_ENHANCED].getStringValue(),
-                               g_options[O_I_PUBLISH_BUFFER_SIZE].getLongValue());
+                                                 (topic_moving_objects_enhanced,
+                                                  publish_buffer_size);
   g_pub_objects_velocity_arrows = g_node->advertise<visualization_msgs::MarkerArray>
-                                                 (g_options[O_I_TOPIC_OBJECTS_VELOCITY_ARROWS].getStringValue(), 
-                                                  g_options[O_I_PUBLISH_BUFFER_SIZE].getLongValue());
+                                                 (topic_objects_velocity_arrows,
+                                                  publish_buffer_size);
   g_pub_objects_closest_point_markers = g_node->advertise<sensor_msgs::LaserScan>
-                                                 (g_options[O_I_TOPIC_OBJECTS_CLOSEST_POINT_MARKERS].getStringValue(), 
-                                                  g_options[O_I_PUBLISH_BUFFER_SIZE].getLongValue());
+                                                 (topic_objects_closest_points_markers,
+                                                  publish_buffer_size);
   
   // MovingObjectArray handler thread
   pthread_t moa_handler;
@@ -641,8 +582,12 @@ int main(int argc, char** argv)
   }
   
   // Subscribe to interpreter results
-  ros::Subscriber sub = g_node->subscribe(g_options[O_I_SUBSCRIBE_TOPIC].getStringValue(), 
-                                          g_options[O_I_SUBSCRIBE_BUFFER_SIZE].getLongValue(), 
+  
+  std::string subscribe_topic;
+  nh_priv.param("subscribe_topic", subscribe_topic, std::string("moving_objects"));
+  int subscribe_buffer_size;
+  ros::Subscriber sub = g_node->subscribe(subscribe_topic, 
+                                          subscribe_buffer_size, 
                                           moaCallback);
  
   // Start main ROS loop

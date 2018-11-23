@@ -62,11 +62,6 @@ double HZCalculator::calc(std::string topic)
   boost::function<void(const topic_tools::ShapeShifter::ConstPtr&) > callbackFirst;
   callbackFirst = boost::bind(&HZCalculator::cbFirst, this, _1);
   ros::Subscriber subFirst = node.subscribe<topic_tools::ShapeShifter>(topic, 10, callbackFirst);
-  
-  // bind hz callback
-  boost::function<void(const topic_tools::ShapeShifter::ConstPtr&) > callback;
-  callback = boost::bind(&HZCalculator::cb, this, _1);
-  ros::Subscriber sub = node.subscribe<topic_tools::ShapeShifter>(topic, 10, callback);
     
   // spin until target is reached
   const double max_time = 1.5;
@@ -84,6 +79,12 @@ double HZCalculator::calc(std::string topic)
       return 0.0;
     }
   }
+  
+  // bind hz callback
+  boost::function<void(const topic_tools::ShapeShifter::ConstPtr&) > callback;
+  callback = boost::bind(&HZCalculator::cb, this, _1);
+  ros::Subscriber sub = node.subscribe<topic_tools::ShapeShifter>(topic, 10, callback);
+  
   const double start_time = ros::Time::now().toSec();
   while ((elapsed_time < max_time && received_msgs < max_msgs) || received_msgs == 0)
   {

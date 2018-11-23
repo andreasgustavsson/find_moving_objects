@@ -38,53 +38,23 @@
 #include <tf/transform_broadcaster.h>
 #include <cmath>
 
-#include <find_moving_objects/option.h>
-
-using namespace find_moving_objects;
-
-/* User options for driving diagonally and/or in a circle */
-Option g_options[] = {
-  Option(false, "--dx",
-         "X coordinate increment",
-         0.0, -std::numeric_limits<double>::max(), std::numeric_limits<double>::max()),
-  Option(false, "--dy",
-         "Y coordinate increment",
-         0.0, -std::numeric_limits<double>::max(), std::numeric_limits<double>::max()),
-  Option(false, "--radius",
-         "Radius of the circular movement",
-         0.0, -std::numeric_limits<double>::max(), std::numeric_limits<double>::max()),
-  Option(false, "--dtheta",
-         "Angle increment",
-         0.0, -M_PI, M_PI),
-};
-
-typedef enum {
-  O_I_DX,
-  O_I_DY,
-  O_I_RADIUS,
-  O_I_DTHETA,
-  NR_OPTIONS
-} option_index_t;
-
 
 /* Entry point */
 int main(int argc, char** argv)
 {
   ros::init(argc, argv, "frame_broadcaster", ros::init_options::AnonymousName);
   ros::NodeHandle node;
-  
-  // Wait for time to become valid
-  ros::Time::waitForValid();
-  Option::scanArgs(argc, argv, g_options);
+  ros::NodeHandle node_priv("~");
 
   ros::Time now;
 
   tf::TransformBroadcaster br;
   tf::Transform transform;
-  const double dx = g_options[O_I_DX].getDoubleValue();
-  const double dy = g_options[O_I_DY].getDoubleValue();
-  const double radius = g_options[O_I_RADIUS].getDoubleValue();
-  const double dtheta = g_options[O_I_DTHETA].getDoubleValue();
+  double dx, dy, radius, dtheta;
+  node_priv.param("dx", dx, 0.0);
+  node_priv.param("dy", dy, 0.0);
+  node_priv.param("radius", radius, 0.0);
+  node_priv.param("dtheta", dtheta, 0.0);
   const double PI_HALF = M_PI/2;
   const double TWO_PI  = 2*M_PI;
   double x = radius;

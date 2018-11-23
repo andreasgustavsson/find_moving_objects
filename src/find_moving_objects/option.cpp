@@ -37,6 +37,7 @@
 #include <ros/ros.h>
 #include <ros/console.h>
 #include <ros/assert.h>
+#include <nodelet/nodelet.h>
 #include <find_moving_objects/option.h>
 #include <iostream> // streams
 #include <sstream> // ostringstream
@@ -399,18 +400,6 @@ void Option::scanArgs(int argc, char** argv, Option * options)
     {
       parameterName = &parameterName[1];
     }
-
-    // Resolve parameter name
-//     ROS_WARN_STREAM("Resolved parameter name: " << n.resolveName(parameterName));
-
-    
-    
-    
-//     ROS_WARN_STREAM("Looking at parameter: '" << parameterName << "'" << (o->getGiven() ? " (given)" : " (not given)") << " and (is" << (n.hasParam(parameterName) ? "" : " not") << ") at server" );
-//     char prefixedParameterName[2 + strlen(parameterName)];
-//     prefixedParameterName[0] = '~';
-//     strcpy(&prefixedParameterName[1], parameterName);
-//     parameterName = &prefixedParameterName[0];
     
     if (o->getGiven() || !n.hasParam(parameterName))
     {
@@ -462,6 +451,10 @@ void Option::scanArgs(int argc, char** argv, Option * options)
           {
             o->setBoolValue(value);
           }
+          else
+          {
+            ROS_ERROR_STREAM("Could not read parameter " << parameterName << " from server");
+          }
           break;
         }
         case O_LONG:
@@ -471,6 +464,10 @@ void Option::scanArgs(int argc, char** argv, Option * options)
           if (ok)
           {
             o->setLongValue(value);
+          }
+          else
+          {
+            ROS_ERROR_STREAM("Could not read parameter " << parameterName << " from server");
           }
           break;
         }
@@ -482,6 +479,10 @@ void Option::scanArgs(int argc, char** argv, Option * options)
           {
             o->setStringValue(value);
           }
+          else
+          {
+            ROS_ERROR_STREAM("Could not read parameter " << parameterName << " from server");
+          }
           break;
         }
         case O_FLOAT:
@@ -491,6 +492,10 @@ void Option::scanArgs(int argc, char** argv, Option * options)
           if (ok)
           {
             o->setDoubleValue(value);
+          }
+          else
+          {
+            ROS_ERROR_STREAM("Could not read parameter " << parameterName << " from server");
           }
           break;
         }

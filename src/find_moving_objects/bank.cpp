@@ -2222,7 +2222,7 @@ unsigned int Bank::putPoints(const sensor_msgs::PointCloud2::ConstPtr msg)
       }
       
       // Sanity check
-      if (isnan(x) || isnan(y) || isnan(z))
+      if (std::isnan(x) || std::isnan(y) || std::isnan(z))
       {
         ROS_DEBUG_STREAM("Skipping point (" << x << "," << y << "," << z << ")");
         continue;

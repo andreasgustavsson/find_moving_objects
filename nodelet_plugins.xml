@@ -1,0 +1,15 @@
+<library path="lib/libPointCloud2InterpreterNodelet">
+  <class name="find_moving_objects/PointCloud2InterpreterNodelet" type="find_moving_objects::PointCloud2InterpreterNodelet" base_class_type="nodelet::Nodelet">
+  <description>
+  PointCloud2 interpreter nodelet.
+  </description>
+  </class>
+</library>
+
+<library path="lib/libLaserScanInterpreterNodelet">
+  <class name="find_moving_objects/LaserScanInterpreterNodelet" type="find_moving_objects::LaserScanInterpreterNodelet" base_class_type="nodelet::Nodelet">
+  <description>
+  LaserScan interpreter nodelet.
+  </description>
+  </class>
+</library>
