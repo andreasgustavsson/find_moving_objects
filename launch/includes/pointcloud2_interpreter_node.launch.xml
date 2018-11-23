@@ -8,7 +8,7 @@
   <arg name="base_frame"                                         default="base_link"/>
   <arg name="nr_scans_in_bank"                                   default="2"/>
   <arg name="optimize_nr_scans_in_bank"                          default="0.5"/>
-  <arg name="bank_view_angle"                                    default="M_PI"/>
+  <arg name="bank_view_angle"                                    default="3.141592654"/>
   <arg name="nr_points_per_scan_in_bank"                         default="360"/>
   <arg name="publish_objects"                                    default="true"/>
   <arg name="publish_ema"                                        default="false"/>
@@ -47,8 +47,9 @@
   
   
   <node pkg="find_moving_objects"
-        type="pointcloud2_interpreter"
-        name="pointcloud2_interpreter">
+        type="pointcloud2_interpreter_node"
+        name="pointcloud2_interpreter"
+        output="screen">
     <param name="subscribe_topic"        type="str"    value="$(arg subscribe_topic)"/>
     <param name="subscribe_buffer_size"  type="int"    value="$(arg subscribe_buffer_size)"/>
 

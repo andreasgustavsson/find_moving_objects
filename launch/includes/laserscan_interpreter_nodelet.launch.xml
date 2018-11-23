@@ -49,7 +49,8 @@
   <node pkg="nodelet"
         type="nodelet"
         name="laserscan_interpreter"
-        args="load find_moving_objects/LaserScanInterpreterNodelet $(arg manager)">
+        args="load find_moving_objects/LaserScanInterpreterNodelet $(arg manager)"
+        output="screen">
     <param name="subscribe_topic"        type="str"    value="$(arg subscribe_topic)"/>
     <param name="subscribe_buffer_size"  type="int"    value="$(arg subscribe_buffer_size)"/>
 

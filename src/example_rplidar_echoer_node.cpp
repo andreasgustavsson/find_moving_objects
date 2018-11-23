@@ -79,8 +79,8 @@ int main(int argc, char** argv)
   // Wait for time to become valid
   ros::Time::waitForValid();
 
-  pub = n.advertise<sensor_msgs::LaserScan>("/scan_echoed", 10);
-  ros::Subscriber sub = n.subscribe<sensor_msgs::LaserScan>("/scan", 10, cb);
+  pub = n.advertise<sensor_msgs::LaserScan>("/lidar/scan_echoed", 10);
+  ros::Subscriber sub = n.subscribe<sensor_msgs::LaserScan>("/lidar/scan", 10, cb);
 
   ros::spin();
 

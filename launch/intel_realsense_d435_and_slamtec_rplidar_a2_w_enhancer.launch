@@ -1,14 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <launch>
-
+<!-- This file launches the pointcloud2_interpreter as a nodelet and the laserscan_interpreter as a node.
+     Use the arguments defined below to control what is launched and whether the recorded bag file should be played. -->
+  
+  
   <!-- uncomment the following two lines to set logger level to DEBUG for find_moving_objects -->
 <!--   <env name="ROSCONSOLE_CONFIG_FILE" -->
 <!--        value="$(find find_moving_objects)/logger_config/logger_config_debug.config" /> -->
   
   
+  <!-- Command line arguments -->
+  <arg name="use_lidar"
+       default="true"
+       doc="Set to false if lidar should not be used"
+       />
   
-  <!-- Command line arguments:
-       Anything you specify on the command line has precedence over the values specified in this file -->
+  <arg name="use_camera"
+       default="true"
+       doc="Set to false if camera should not be used"
+       />
+  
+  <arg name="use_bag"
+       default="false"
+       doc="Set to true if provided bag file should be played instead of using real sensors"
+       />
+  
+  <arg name="use_rviz"
+       default="true"
+       doc="Set to false if rviz should not be launched"
+       />
+  
+  <arg name="downscale_pointcloud"
+       default="false"
+       doc="Set to true if voxel grid filter should be applied to camera output"
+       />
   
   <arg name="laserscan_interpreter_extra_args"
        default=""
@@ -25,10 +50,35 @@
        doc="Additional args for the frame broadcaster"
        />
   
+  <arg name="rosbag_extra_args"
+       default=""
+       doc="Additional args for rosbag play"
+       />
+  
+  <arg name="rviz_required"
+       default="false"
+       doc="Set this to true if rviz is a required node"
+       />
+  
+  <arg name="rosbag_required"
+       default="false"
+       doc="Set this to true if rosbag is a required node"
+       />
+  
+  <arg name="bag_path"
+       default="$(find find_moving_objects)/bags"
+       doc="Base path to log/bag files"
+       />
+  
+  <!-- NOTE THAT THE FOLLOWING FILE IS COMPRESSED AND MUST BE EXTRACTED -->
+  <arg name="bag" 
+       default="object_is_moving_in_a_convex_arc.bag" 
+       doc="bag file to play"
+       />
   
   
-  <!-- Frames broadcaster - avoid tf transformation errors by publishing the relation between the involved frames
-                    UPDATE THIS ACCORDING TO YOUR OWN NEEDS -->
+  
+  <!-- Frames broadcaster - tf state publisher -->
   <node pkg="find_moving_objects"
         type="example_frame_broadcaster_node"
         name="frame_broadcaster"
@@ -38,112 +88,122 @@
         output="screen"
         />
 
-  <!-- Run laserscan interpreter for lidar -->
-  <node pkg="find_moving_objects"
-        type="laserscan_interpreter_node"
-        name="laserscan_interpreter_node"
-        ns="laserscan_interpreter"
-        args="--print_all_options
-              --subscribe_topic /scan
-              --publish_ema
-              --publish_objects_closest_point_markers
-              --publish_objects_velocity_arrows
-              --publish_objects_delta_position_lines
-              --publish_objects_width_lines
-              --optimize_nr_scans_in_bank 0.5
-              --object_threshold_min_speed 0.1
-              --object_threshold_max_distance 8
-              --object_threshold_min_nr_points 4
-              --object_threshold_min_confidence 0.5
-              --object_threshold_edge_max_delta_range 0.2
-              --object_threshold_max_delta_width_in_points 20
-              --object_threshold_bank_tracking_max_delta_distance 0.4
-              $(arg laserscan_interpreter_extra_args)"
-          output="screen" >
-    <param name="topic_objects" value="/moving_objects" />
-  </node>
+  <!--  Lidar  -->
+  <group if="$(arg use_lidar)"  ns="lidar">
+    <!-- Run Slamtec rpLidar A2 -->
+    <include unless="$(arg use_bag)" file="$(find rplidar_ros)/launch/rplidar.launch">
+    </include>
+    
+    <!-- Run laserscan interpreter for lidar -->
+    <include file="$(find find_moving_objects)/launch/includes/laserscan_interpreter_node.launch.xml">
+      <arg unless="$(arg use_bag)" 
+           name="subscribe_topic" value="scan" />
+      <arg if="$(arg use_bag)" 
+           name="subscribe_topic" value="scan_echoed" />
+      
+      <arg name="topic_objects" value="/moving_objects" />
+      
+      <arg name="publish_ema"                            value="true"/>
+      <arg name="publish_objects_closest_points_markers" value="true"/>
+      <arg name="publish_objects_velocity_arrows"        value="true"/>
+      <arg name="publish_objects_delta_position_lines"   value="true"/>
+      <arg name="publish_objects_width_lines"            value="true"/>
+    </include>
+  </group>
   
-  <!-- Voxel filter to down-scale pointcloud2 -->
-  <node pkg="nodelet" type="nodelet" name="pcl_manager" args="manager" output="screen" />
-  <node pkg="nodelet" type="nodelet" name="voxel_grid" args="load pcl/VoxelGrid pcl_manager" output="screen">
-    <remap from="~input" to="/camera/depth/color/points" />
-    <remap from="~output" to="/camera/depth/color/points/filtered" />
-    <rosparam>
-      filter_field_name: z
-      filter_limit_min: 0.01
-      filter_limit_max: 6.5
-      filter_limit_negative: False
-      leaf_size: 0.01
-<!--       output_frame: camera_link -->
-    </rosparam>
-  </node>
-  
-  <!-- Run pointcloud2 interpreter for camera -->
-  <node pkg="find_moving_objects"
-        type="pointcloud2_interpreter_node"
-        name="pointcloud2_interpreter_node"
-        ns="pointcloud2_interpreter"
-        args="--print_all_options
-              --subscribe_topic /camera/depth/color/points/filtered
-              --sensor_frame_has_z_axis_forward
-              --base_frame base_link
-              --fixed_frame odom
-              --map_frame map
-              --subscribe_buffer_size 1
-              --publish_ema
-              --ema_alpha 1.0
-              --publish_objects_closest_point_markers
-              --publish_objects_velocity_arrows
-              --publish_objects_delta_position_lines
-              --publish_objects_width_lines
-              --velocity_arrows_use_sensor_frame
-              --optimize_nr_scans_in_bank 0.5
-              --nr_points_per_scan_in_bank 360
-              --voxel_leaf_size 0.01
-              --threshold_z_min 0
-              --threshold_z_max 1
-              --object_threshold_min_speed 0.03
-              --object_threshold_max_distance 6.5
-              --object_threshold_min_nr_points 4
-              --object_threshold_min_confidence 0.5
-              --object_threshold_edge_max_delta_range 0.15
-              --object_threshold_max_delta_width_in_points 50
-              --object_threshold_bank_tracking_max_delta_distance 0.4
-              $(arg pointcloud2_interpreter_extra_args)"
-          output="screen" >
-    <param name="topic_objects" value="/moving_objects" />
-  </node>
+  <!--  Camera  -->
+  <group if="$(arg use_camera)"  ns="camera">
+    <!-- Run Intel Realsense D435 -->
+    <include unless="$(arg use_bag)" file="$(find realsense2_camera)/launch/includes/nodelet.launch.xml">
+      <arg name="manager" value="camera_nodelet_manager"/>
+      <arg name="enable_pointcloud" value="true"/>
+      <arg name="align_depth" value="true"/>
+      <arg name="enable_sync" value="true"/>
+    </include>
+    
+    <!-- Voxel filter to down-scale pointcloud2 -->
+    <node if="$(eval arg('downscale_pointcloud') and not arg('use_bag'))"
+          pkg="nodelet" 
+          type="nodelet" 
+          name="voxel_grid" 
+          args="load pcl/VoxelGrid camera_nodelet_manager" 
+          output="screen">
+      <remap from="~input" to="depth/color/points" />
+      <remap from="~output" to="depth/color/points/filtered" />
+      <rosparam>
+        filter_field_name: z
+        filter_limit_min: 0.01
+        filter_limit_max: 6.5
+        filter_limit_negative: False
+        leaf_size: 0.01
+  <!--       output_frame: camera_link -->
+      </rosparam>
+    </node>
+    
+    <!-- Run pointcloud2 interpreter for camera -->
+    <include file="$(find find_moving_objects)/launch/includes/pointcloud2_interpreter_nodelet.launch.xml">
+      <arg name="manager" value="camera_nodelet_manager" />
+      <arg if="$(arg use_bag)"
+           name="create_manager" value="true" />
+      <arg if="$(arg use_bag)" 
+           name="subscribe_topic" value="depth/color/points/filtered_echoed" />
+      <arg if="$(eval not arg('downscale_pointcloud') and not arg('use_bag'))" 
+           name="subscribe_topic" value="depth/color/points" />
+      <arg if="$(eval arg('downscale_pointcloud') and not arg('use_bag'))" 
+           name="subscribe_topic" value="depth/color/points/filtered" />
+      
+      <arg name="topic_objects" value="/moving_objects" />
+      
+      <arg name="publish_objects_velocity_arrows"        value="true"/>
+      <arg name="publish_objects_delta_position_lines"   value="true"/>
+      <arg name="publish_objects_width_lines"            value="true"/>
+    </include>
+</group>
   
   <!-- Run confidence enhancing node -->
   <node pkg="find_moving_objects"
         type="moving_objects_confidence_enhancer_node"
         name="confidence_enhancer_node"
         ns="confidence_enhancer"
-        args="--print_all_options
-              --publish_objects_closest_point_markers
-              --publish_objects_velocity_arrows
-              --ignore_z_map_coordinate_for_position"
         output="screen" >
     <param name="subscribe_topic" value="/moving_objects" />
+    <param name="publish_objects_closest_points_markers" value="true"/>
+    <param name="publish_objects_velocity_arrows"        value="true"/>
   </node>
   
   <!-- Run rviz for visualization -->
-  <node pkg="rviz" 
+  <node if="$(arg use_rviz)"
+        pkg="rviz" 
         type="rviz" 
         name="rviz" 
-        args="--display-config $(find find_moving_objects)/rviz/moving_objects_enhanced.rviz"
-        required="true"
+        args="--display-config $(find find_moving_objects)/rviz/moving_objects.rviz"
+        required="$(arg rviz_required)"
         />
   
-  <!-- Run Slamtec rpLidar A2 -->
-  <include file="$(find rplidar_ros)/launch/rplidar.launch">
-  </include>
   
-  <!-- Run Intel Realsense D435 -->
-  <include file="$(find realsense2_camera)/launch/rs_camera.launch">
-           <arg name="enable_pointcloud" value="true"/>
-           <arg name="align_depth" value="true"/>
-           <arg name="enable_sync" value="true"/>
-  </include>
-  
+  <group if="$(arg use_bag)" ns="bag_player">
+    <!-- pointcloud2 echoer - avoid dropping too old messages by updating their timestamps -->
+    <node pkg="find_moving_objects"
+          type="example_d435_voxel_echoer_node"
+          name="d435_voxel_echoer"
+          />
+    
+    <!-- laserscan echoer - avoid dropping too old messages by updating their timestamps -->
+    <node pkg="find_moving_objects"
+          type="example_rplidar_echoer_node"
+          name="rplidar_echoer"
+          />
+
+    <!-- Run rosbag to play back the recording -->
+    <node pkg="rosbag"
+          type="play"
+          name="rosbag_play"
+          args="--wait-for-subscribers
+                --topics /scan /camera/depth/color/points/filtered /tf_static
+                $(arg rosbag_extra_args)
+                --bags $(arg bag_path)/$(arg bag)"
+          required="$(arg rosbag_required)">
+      <remap from="/scan" to="/lidar/scan"/>
+    </node>
+  </group>
 </launch>

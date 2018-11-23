@@ -4,13 +4,9 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
-        - /DepthCloud1/Auto Size1
-        - /DepthCloud2/Auto Size1
-        - /DepthCloud3/Auto Size1
-        - /DepthCloud4/Auto Size1
         - /TF1/Frames1
       Splitter Ratio: 0.5
-    Tree Height: 425
+    Tree Height: 910
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -29,7 +25,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: Image RGB
+    SyncSource: LIDAR LaserScan EMA
 Visualization Manager:
   Class: ""
   Displays:
@@ -62,14 +58,13 @@ Visualization Manager:
       Unreliable: false
       Value: false
       Visibility:
-        CAMERA LaserScan Closest Points: true
-        CAMERA LaserScan EMA: true
         CAMERA MarkerArray Delta Position_Lines: true
         CAMERA MarkerArray Velocity Arrows: true
         CAMERA MarkerArray Width Lines: true
         CAMERA PointCloud2: true
+        CAMERA PointCloud2 Filtered: true
+        CAMERA PointCloud2 Filtered Echoed: true
         Camera: true
-        DepthCloud: true
         ENHANCER LaserScan Closest Points: true
         ENHANCER MarkerArray Velocity Arrows: true
         Grid: true
@@ -80,55 +75,15 @@ Visualization Manager:
         LIDAR LaserScan: true
         LIDAR LaserScan Closest Points: true
         LIDAR LaserScan EMA: true
+        LIDAR LaserScan Echoed: true
         LIDAR MarkerArray Delta Position Lines: true
         LIDAR MarkerArray Velocity Arrows: true
         LIDAR MarkerArray Width Lines: true
-        PointStamped: true
-        Pose: true
-        PoseWithCovariance: true
         TF: true
         Value: true
       Zoom Factor: 1
-    - Alpha: 1
-      Auto Size:
-        Auto Size Factor: 1
-        Value: true
-      Autocompute Intensity Bounds: true
-      Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
-      Axis: Z
-      Channel Name: intensity
-      Class: rviz/DepthCloud
-      Color: 255; 255; 255
-      Color Image Topic: ""
-      Color Transformer: ""
-      Color Transport Hint: raw
-      Decay Time: 0
-      Depth Map Topic: /camera/color/image_raw
-      Depth Map Transport Hint: raw
-      Enabled: false
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Max Intensity: 4096
-      Min Color: 0; 0; 0
-      Min Intensity: 0
-      Name: DepthCloud
-      Occlusion Compensation:
-        Occlusion Time-Out: 30
-        Value: false
-      Position Transformer: ""
-      Queue Size: 5
-      Selectable: true
-      Size (Pixels): 3
-      Style: Flat Squares
-      Topic Filter: true
-      Use Fixed Frame: true
-      Use rainbow: true
-      Value: false
     - Class: rviz/Image
-      Enabled: true
+      Enabled: false
       Image Topic: /camera/color/image_raw
       Max Value: 1
       Median window: 5
@@ -138,7 +93,7 @@ Visualization Manager:
       Queue Size: 2
       Transport Hint: raw
       Unreliable: false
-      Value: true
+      Value: false
     - Class: rviz/Camera
       Enabled: false
       Image Rendering: background and overlay
@@ -150,14 +105,13 @@ Visualization Manager:
       Unreliable: false
       Value: false
       Visibility:
-        CAMERA LaserScan Closest Points: true
-        CAMERA LaserScan EMA: true
         CAMERA MarkerArray Delta Position_Lines: true
         CAMERA MarkerArray Velocity Arrows: true
         CAMERA MarkerArray Width Lines: true
         CAMERA PointCloud2: true
+        CAMERA PointCloud2 Filtered: true
+        CAMERA PointCloud2 Filtered Echoed: true
         Camera: true
-        DepthCloud: true
         ENHANCER LaserScan Closest Points: true
         ENHANCER MarkerArray Velocity Arrows: true
         Grid: true
@@ -168,53 +122,13 @@ Visualization Manager:
         LIDAR LaserScan: true
         LIDAR LaserScan Closest Points: true
         LIDAR LaserScan EMA: true
+        LIDAR LaserScan Echoed: true
         LIDAR MarkerArray Delta Position Lines: true
         LIDAR MarkerArray Velocity Arrows: true
         LIDAR MarkerArray Width Lines: true
-        PointStamped: true
-        Pose: true
-        PoseWithCovariance: true
         TF: true
         Value: true
       Zoom Factor: 1
-    - Alpha: 1
-      Auto Size:
-        Auto Size Factor: 1
-        Value: true
-      Autocompute Intensity Bounds: true
-      Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
-      Axis: Z
-      Channel Name: intensity
-      Class: rviz/DepthCloud
-      Color: 255; 255; 255
-      Color Image Topic: /camera/color/image_raw
-      Color Transformer: RGB8
-      Color Transport Hint: raw
-      Decay Time: 0
-      Depth Map Topic: /camera/depth/image_rect_raw
-      Depth Map Transport Hint: raw
-      Enabled: false
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Max Intensity: 4096
-      Min Color: 0; 0; 0
-      Min Intensity: 0
-      Name: DepthCloud
-      Occlusion Compensation:
-        Occlusion Time-Out: 30
-        Value: false
-      Position Transformer: XYZ
-      Queue Size: 5
-      Selectable: true
-      Size (Pixels): 3
-      Style: Flat Squares
-      Topic Filter: true
-      Use Fixed Frame: true
-      Use rainbow: true
-      Value: false
     - Class: rviz/Image
       Enabled: false
       Image Topic: /camera/depth/image_rect_raw
@@ -238,14 +152,13 @@ Visualization Manager:
       Unreliable: false
       Value: false
       Visibility:
-        CAMERA LaserScan Closest Points: true
-        CAMERA LaserScan EMA: true
         CAMERA MarkerArray Delta Position_Lines: true
         CAMERA MarkerArray Velocity Arrows: true
         CAMERA MarkerArray Width Lines: true
         CAMERA PointCloud2: true
+        CAMERA PointCloud2 Filtered: true
+        CAMERA PointCloud2 Filtered Echoed: true
         Camera: true
-        DepthCloud: true
         ENHANCER LaserScan Closest Points: true
         ENHANCER MarkerArray Velocity Arrows: true
         Grid: true
@@ -256,53 +169,13 @@ Visualization Manager:
         LIDAR LaserScan: true
         LIDAR LaserScan Closest Points: true
         LIDAR LaserScan EMA: true
+        LIDAR LaserScan Echoed: true
         LIDAR MarkerArray Delta Position Lines: true
         LIDAR MarkerArray Velocity Arrows: true
         LIDAR MarkerArray Width Lines: true
-        PointStamped: true
-        Pose: true
-        PoseWithCovariance: true
         TF: true
         Value: true
       Zoom Factor: 1
-    - Alpha: 1
-      Auto Size:
-        Auto Size Factor: 1
-        Value: true
-      Autocompute Intensity Bounds: true
-      Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
-      Axis: Z
-      Channel Name: intensity
-      Class: rviz/DepthCloud
-      Color: 255; 255; 255
-      Color Image Topic: ""
-      Color Transformer: ""
-      Color Transport Hint: raw
-      Decay Time: 0
-      Depth Map Topic: /camera/infra1/image_rect_raw
-      Depth Map Transport Hint: raw
-      Enabled: false
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Max Intensity: 4096
-      Min Color: 0; 0; 0
-      Min Intensity: 0
-      Name: DepthCloud
-      Occlusion Compensation:
-        Occlusion Time-Out: 30
-        Value: false
-      Position Transformer: ""
-      Queue Size: 5
-      Selectable: true
-      Size (Pixels): 3
-      Style: Flat Squares
-      Topic Filter: true
-      Use Fixed Frame: true
-      Use rainbow: true
-      Value: false
     - Class: rviz/Image
       Enabled: false
       Image Topic: /camera/infra1/image_rect_raw
@@ -326,14 +199,13 @@ Visualization Manager:
       Unreliable: false
       Value: false
       Visibility:
-        CAMERA LaserScan Closest Points: true
-        CAMERA LaserScan EMA: true
         CAMERA MarkerArray Delta Position_Lines: true
         CAMERA MarkerArray Velocity Arrows: true
         CAMERA MarkerArray Width Lines: true
         CAMERA PointCloud2: true
+        CAMERA PointCloud2 Filtered: true
+        CAMERA PointCloud2 Filtered Echoed: true
         Camera: true
-        DepthCloud: true
         ENHANCER LaserScan Closest Points: true
         ENHANCER MarkerArray Velocity Arrows: true
         Grid: true
@@ -344,53 +216,13 @@ Visualization Manager:
         LIDAR LaserScan: true
         LIDAR LaserScan Closest Points: true
         LIDAR LaserScan EMA: true
+        LIDAR LaserScan Echoed: true
         LIDAR MarkerArray Delta Position Lines: true
         LIDAR MarkerArray Velocity Arrows: true
         LIDAR MarkerArray Width Lines: true
-        PointStamped: true
-        Pose: true
-        PoseWithCovariance: true
         TF: true
         Value: true
       Zoom Factor: 1
-    - Alpha: 1
-      Auto Size:
-        Auto Size Factor: 1
-        Value: true
-      Autocompute Intensity Bounds: true
-      Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
-      Axis: Z
-      Channel Name: intensity
-      Class: rviz/DepthCloud
-      Color: 255; 255; 255
-      Color Image Topic: ""
-      Color Transformer: ""
-      Color Transport Hint: raw
-      Decay Time: 0
-      Depth Map Topic: /camera/infra2/image_rect_raw
-      Depth Map Transport Hint: raw
-      Enabled: false
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Max Intensity: 4096
-      Min Color: 0; 0; 0
-      Min Intensity: 0
-      Name: DepthCloud
-      Occlusion Compensation:
-        Occlusion Time-Out: 30
-        Value: false
-      Position Transformer: ""
-      Queue Size: 5
-      Selectable: true
-      Size (Pixels): 3
-      Style: Flat Squares
-      Topic Filter: true
-      Use Fixed Frame: true
-      Use rainbow: true
-      Value: false
     - Class: rviz/Image
       Enabled: false
       Image Topic: /camera/infra2/image_rect_raw
@@ -401,61 +233,6 @@ Visualization Manager:
       Normalize Range: true
       Queue Size: 2
       Transport Hint: raw
-      Unreliable: false
-      Value: false
-    - Alpha: 1
-      Class: rviz/PointStamped
-      Color: 204; 41; 204
-      Enabled: false
-      History Length: 1
-      Name: PointStamped
-      Radius: 0.200000003
-      Topic: /clicked_point
-      Unreliable: false
-      Value: false
-    - Alpha: 1
-      Axes Length: 1
-      Axes Radius: 0.100000001
-      Class: rviz/PoseWithCovariance
-      Color: 255; 25; 0
-      Covariance:
-        Orientation:
-          Alpha: 0.5
-          Color: 255; 255; 127
-          Color Style: Unique
-          Frame: Local
-          Offset: 1
-          Scale: 1
-          Value: true
-        Position:
-          Alpha: 0.300000012
-          Color: 204; 51; 204
-          Scale: 1
-          Value: true
-        Value: true
-      Enabled: false
-      Head Length: 0.300000012
-      Head Radius: 0.100000001
-      Name: PoseWithCovariance
-      Shaft Length: 1
-      Shaft Radius: 0.0500000007
-      Shape: Arrow
-      Topic: /initialpose
-      Unreliable: false
-      Value: false
-    - Alpha: 1
-      Axes Length: 1
-      Axes Radius: 0.100000001
-      Class: rviz/Pose
-      Color: 255; 25; 0
-      Enabled: false
-      Head Length: 0.300000012
-      Head Radius: 0.100000001
-      Name: Pose
-      Shaft Length: 1
-      Shaft Radius: 0.0500000007
-      Shape: Arrow
-      Topic: /move_base_simple/goal
       Unreliable: false
       Value: false
     - Alpha: 1
@@ -483,6 +260,36 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.00999999978
       Style: Flat Squares
+      Topic: /camera/depth/color/points
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: ""
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: CAMERA PointCloud2 Filtered
+      Position Transformer: ""
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.00999999978
+      Style: Flat Squares
       Topic: /camera/depth/color/points/filtered
       Unreliable: false
       Use Fixed Frame: true
@@ -496,28 +303,52 @@ Visualization Manager:
         Value: true
       Axis: Z
       Channel Name: intensity
-      Class: rviz/LaserScan
+      Class: rviz/PointCloud2
       Color: 255; 255; 255
-      Color Transformer: Intensity
+      Color Transformer: RGB8
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
-      Max Intensity: 300
+      Max Intensity: 4096
       Min Color: 0; 0; 0
       Min Intensity: 0
-      Name: CAMERA LaserScan EMA
+      Name: CAMERA PointCloud2 Filtered Echoed
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
       Size (Pixels): 3
       Size (m): 0.00999999978
       Style: Flat Squares
-      Topic: /pointcloud2_interpreter/ema
+      Topic: /camera/depth/color/points/filtered_echoed
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /camera/objects_velocity_arrows
+      Name: CAMERA MarkerArray Velocity Arrows
+      Namespaces:
+        velocity_arrows: true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /camera/objects_delta_position_lines
+      Name: CAMERA MarkerArray Delta Position_Lines
+      Namespaces:
+        delta_position_lines: true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /camera/objects_width_lines
+      Name: CAMERA MarkerArray Width Lines
+      Namespaces:
+        width_lines: true
+      Queue Size: 100
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -531,60 +362,6 @@ Visualization Manager:
       Color Transformer: Intensity
       Decay Time: 0
       Enabled: false
-      Invert Rainbow: false
-      Max Color: 255; 255; 255
-      Max Intensity: 1000
-      Min Color: 0; 0; 0
-      Min Intensity: 1000
-      Name: CAMERA LaserScan Closest Points
-      Position Transformer: XYZ
-      Queue Size: 10
-      Selectable: true
-      Size (Pixels): 3
-      Size (m): 0.0500000007
-      Style: Flat Squares
-      Topic: /pointcloud2_interpreter/objects_closest_point_markers
-      Unreliable: false
-      Use Fixed Frame: true
-      Use rainbow: true
-      Value: false
-    - Class: rviz/MarkerArray
-      Enabled: true
-      Marker Topic: /pointcloud2_interpreter/objects_velocity_arrows
-      Name: CAMERA MarkerArray Velocity Arrows
-      Namespaces:
-        pointcloud2_velocity_arrow: true
-      Queue Size: 100
-      Value: true
-    - Class: rviz/MarkerArray
-      Enabled: true
-      Marker Topic: /pointcloud2_interpreter/objects_delta_position_lines
-      Name: CAMERA MarkerArray Delta Position_Lines
-      Namespaces:
-        pointcloud2_delta_position_line: true
-      Queue Size: 100
-      Value: true
-    - Class: rviz/MarkerArray
-      Enabled: true
-      Marker Topic: /pointcloud2_interpreter/objects_width_lines
-      Name: CAMERA MarkerArray Width Lines
-      Namespaces:
-        pointcloud2_width_line: true
-      Queue Size: 100
-      Value: true
-    - Alpha: 1
-      Autocompute Intensity Bounds: true
-      Autocompute Value Bounds:
-        Max Value: 10
-        Min Value: -10
-        Value: true
-      Axis: Z
-      Channel Name: intensity
-      Class: rviz/LaserScan
-      Color: 255; 255; 255
-      Color Transformer: Intensity
-      Decay Time: 0
-      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 47
@@ -597,11 +374,11 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.00999999978
       Style: Flat Squares
-      Topic: /scan
+      Topic: /lidar/scan
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -612,22 +389,22 @@ Visualization Manager:
       Channel Name: intensity
       Class: rviz/LaserScan
       Color: 255; 255; 255
-      Color Transformer: ""
+      Color Transformer: Intensity
       Decay Time: 0
       Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
-      Max Intensity: 4096
+      Max Intensity: 47
       Min Color: 0; 0; 0
-      Min Intensity: 0
-      Name: LIDAR LaserScan EMA
-      Position Transformer: ""
+      Min Intensity: 47
+      Name: LIDAR LaserScan Echoed
+      Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
       Size (Pixels): 3
       Size (m): 0.00999999978
       Style: Flat Squares
-      Topic: /laserscan_interpreter/ema
+      Topic: /lidar/scan_echoed
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -642,48 +419,78 @@ Visualization Manager:
       Channel Name: intensity
       Class: rviz/LaserScan
       Color: 255; 255; 255
-      Color Transformer: ""
+      Color Transformer: Intensity
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
-      Max Intensity: 4096
+      Max Intensity: 300
       Min Color: 0; 0; 0
       Min Intensity: 0
+      Name: LIDAR LaserScan EMA
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.00999999978
+      Style: Flat Squares
+      Topic: /lidar/ema
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/LaserScan
+      Color: 255; 255; 255
+      Color Transformer: Intensity
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 1000
+      Min Color: 0; 0; 0
+      Min Intensity: 1000
       Name: LIDAR LaserScan Closest Points
-      Position Transformer: ""
+      Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
       Size (Pixels): 3
       Size (m): 0.0500000007
       Style: Flat Squares
-      Topic: /laserscan_interpreter/objects_closest_point_markers
+      Topic: /lidar/objects_closest_point_markers
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: false
+      Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /laserscan_interpreter/objects_velocity_arrows
+      Marker Topic: /lidar/objects_velocity_arrows
       Name: LIDAR MarkerArray Velocity Arrows
       Namespaces:
-        laserscan_velocity_arrow: true
+        velocity_arrows: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /laserscan_interpreter/objects_delta_position_lines
+      Marker Topic: /lidar/objects_delta_position_lines
       Name: LIDAR MarkerArray Delta Position Lines
       Namespaces:
-        laserscan_delta_position_line: true
+        delta_position_lines: true
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /laserscan_interpreter/objects_width_lines
+      Marker Topic: /lidar/objects_width_lines
       Name: LIDAR MarkerArray Width Lines
       Namespaces:
-        laserscan_width_line: true
+        width_lines: true
       Queue Size: 100
       Value: true
     - Class: rviz/TF
@@ -780,14 +587,14 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.0500000007
       Style: Flat Squares
-      Topic: /confidence_enhancer/fused_objects_closest_point_markers
+      Topic: /confidence_enhancer/objects_closest_points_markers
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /confidence_enhancer/fused_objects_velocity_arrows
+      Marker Topic: /confidence_enhancer/objects_velocity_arrows
       Name: ENHANCER MarkerArray Velocity Arrows
       Namespaces:
         fused_velocity_arrow: true
@@ -839,7 +646,15 @@ Visualization Manager:
       Yaw: 2.47999811
     Saved: ~
 Window Geometry:
+  "&Camera":
+    collapsed: false
   "&Displays":
+    collapsed: false
+  "&Image Depth":
+    collapsed: false
+  "&Image Infra 1":
+    collapsed: false
+  "&Image Infra 2":
     collapsed: false
   "&Image RGB":
     collapsed: false
@@ -847,22 +662,14 @@ Window Geometry:
     collapsed: false
   "&Views":
     collapsed: false
-  Camera:
-    collapsed: false
   Height: 1171
   Hide Left Dock: false
   Hide Right Dock: false
-  Image Depth:
-    collapsed: false
-  Image Infra 1:
-    collapsed: false
-  Image Infra 2:
-    collapsed: false
-  QMainWindow State: 000000ff00000000fd0000000400000000000002b2000003dbfc0200000012fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000006c01000003fb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c0061007900730100000044000001f6000000e301000003fb0000001a0049006d00610067006500200049006e006600720061002000320000000251000001160000002201000003fb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb0000000c00430061006d0065007200610000000144000000ad0000002201000003fb0000000c00430061006d0065007200610000000141000000b60000002201000003fb0000001a0049006d00610067006500200049006e0066007200610020003100000002cb000000c00000002201000003fb0000000c00430061006d0065007200610000000349000000d60000002201000003fb000000120049006d0061006700650020005200470042010000023b000001e40000002201000003fb0000000c00430061006d0065007200610000000377000000a80000002201000003fb000000160049006d00610067006500200044006500700074006800000003000000011f0000002201000003fb0000000c00430061006d00650072006100000003b10000009a0000000000000000fb0000000a0049006d00610067006500000002a60000017900000000000000000000000100000110000003dbfc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a005600690065007700730100000044000003db000000c601000003fb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000007800000004cfc0100000002fb0000000800540069006d00650100000000000007800000025e01000003fb0000000800540069006d00650100000000000004500000000000000000000003bc000003db00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000400000000000002b2000003dbfc0200000012fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000006c01000003fb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c0061007900730100000044000003db000000e301000003fb0000001a0049006d00610067006500200049006e006600720061002000320000000309000001160000002201000003fb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb0000000c00430061006d0065007200610000000372000000ad0000002201000003fb0000000c00430061006d0065007200610000000369000000b60000002201000003fb0000001a0049006d00610067006500200049006e00660072006100200031000000035f000000c00000002201000003fb0000000c00430061006d0065007200610000000349000000d60000002201000003fb000000120049006d006100670065002000520047004200000001e5000001910000002201000003fb0000000c00430061006d0065007200610000000258000001c70000002201000003fb000000160049006d00610067006500200044006500700074006800000003000000011f0000002201000003fb0000000c00430061006d00650072006100000003b10000009a0000000000000000fb0000000a0049006d00610067006500000002a60000017900000000000000000000000100000110000003dbfc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a005600690065007700730100000044000003db000000c601000003fb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000007800000004cfc0100000002fb0000000800540069006d00650100000000000007800000025e01000003fb0000000800540069006d00650100000000000004500000000000000000000003bc000003db00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Tool Properties:
     collapsed: false
   Width: 1920
-  X: 320
+  X: 308
   Y: 0
