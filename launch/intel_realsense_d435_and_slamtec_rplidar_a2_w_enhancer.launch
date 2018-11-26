@@ -119,6 +119,7 @@
       <arg name="enable_pointcloud" value="true"/>
       <arg name="align_depth" value="true"/>
       <arg name="enable_sync" value="true"/>
+      <arg name="tf_prefix" value="camera"/>
     </include>
     
     <!-- Voxel filter to down-scale pointcloud2 -->
