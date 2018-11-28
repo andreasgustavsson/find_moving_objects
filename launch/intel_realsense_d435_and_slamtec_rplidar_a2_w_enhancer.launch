@@ -112,7 +112,6 @@
   </group>
   
   <!--  Camera  -->
-  <group if="$(arg use_camera)"  ns="camera">
     <!-- Run Intel Realsense D435 -->
     <include unless="$(arg use_bag)" file="$(find realsense2_camera)/launch/rs_camera.launch">
       <arg name="enable_pointcloud" value="true"/>
@@ -120,6 +119,8 @@
       <arg name="enable_sync" value="true"/>
     </include>
     
+  <!--  Attach to camera's namespace  -->
+  <group if="$(arg use_camera)"  ns="camera">
     <!-- Voxel filter to down-scale pointcloud2 -->
     <node if="$(eval arg('downscale_pointcloud') and not arg('use_bag'))"
           pkg="nodelet" 
