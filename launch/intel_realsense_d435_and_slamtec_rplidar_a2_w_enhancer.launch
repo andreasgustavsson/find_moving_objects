@@ -114,12 +114,10 @@
   <!--  Camera  -->
   <group if="$(arg use_camera)"  ns="camera">
     <!-- Run Intel Realsense D435 -->
-    <include unless="$(arg use_bag)" file="$(find realsense2_camera)/launch/includes/nodelet.launch.xml">
-      <arg name="manager" value="camera_nodelet_manager"/>
+    <include unless="$(arg use_bag)" file="$(find realsense2_camera)/launch/rs_camera.launch">
       <arg name="enable_pointcloud" value="true"/>
       <arg name="align_depth" value="true"/>
       <arg name="enable_sync" value="true"/>
-      <arg name="tf_prefix" value="camera"/>
     </include>
     
     <!-- Voxel filter to down-scale pointcloud2 -->
@@ -127,7 +125,7 @@
           pkg="nodelet" 
           type="nodelet" 
           name="voxel_grid" 
-          args="load pcl/VoxelGrid camera_nodelet_manager" 
+          args="load pcl/VoxelGrid realsense2_camera_manager" 
           output="screen">
       <remap from="~input" to="depth/color/points" />
       <remap from="~output" to="depth/color/points/filtered" />
@@ -143,7 +141,7 @@
     
     <!-- Run pointcloud2 interpreter for camera -->
     <include file="$(find find_moving_objects)/launch/includes/pointcloud2_interpreter_nodelet.launch.xml">
-      <arg name="manager" value="camera_nodelet_manager" />
+      <arg name="manager" value="realsense2_camera_manager" />
       <arg if="$(arg use_bag)"
            name="create_manager" value="true" />
       <arg if="$(arg use_bag)" 
