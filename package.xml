@@ -10,7 +10,7 @@
   <!-- Url tags are optional, but multiple are allowed, one per tag -->
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
   <!-- Example: -->
-  <!-- <url type="website">http://wiki.ros.org/find_moving_objects</url> -->
+  <url type="website">http://www.ros.org/wiki/find_moving_objects</url>
   <url type="sources">https://github.com/andreasgustavsson/find_moving_objects</url>
   
   
