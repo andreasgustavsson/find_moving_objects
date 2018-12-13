@@ -292,6 +292,24 @@ install(DIRECTORY include/${PROJECT_NAME}/
  PATTERN ".svn" EXCLUDE
 )
 
+install(DIRECTORY launch rviz logger_config
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+  USE_SOURCE_PERMISSIONS
+)
+
+
+install(TARGETS laserscan_interpreter_node pointcloud2_interpreter_node
+                LaserScanInterpreterNodelet PointCloud2InterpreterNodelet
+                moving_objects_confidence_enhancer_node
+                example_d435_voxel_echoer_node
+                example_rplidar_echoer_node
+                example_frame_broadcaster_node
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+
 ## Mark other files for installation (e.g. launch and bag files, etc.)
 # install(FILES
 #   # myfile1
