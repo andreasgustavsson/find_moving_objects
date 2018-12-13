@@ -180,9 +180,6 @@ void * moaHandlerBody(void * arg)
   nh_priv.param("velocity_arrows_use_sensor_frame", velocity_arrows_use_sensor_frame_param, false);
   nh_priv.param("velocity_arrows_use_base_frame", velocity_arrows_use_base_frame_param, false);
   nh_priv.param("velocity_arrows_use_fixed_frame", velocity_arrows_use_fixed_frame_param, false);
-  nh_priv.param("topic_moving_objects_enhanced", topic_moving_objects_enhanced, std::string("moving_objects_enhanced"));
-  nh_priv.param("topic_objects_closest_point_markers", topic_objects_closest_point_markers, std::string("objects_closest_points_markers"));
-  nh_priv.param("topic_objects_velocity_arrows", topic_objects_velocity_arrows, std::string("objects_velocity_arrows"));
   nh_priv.param("threshold_min_confidence", threshold_min_confidence, 0.0);
   nh_priv.param("threshold_max_delta_time_for_different_sources", threshold_max_delta_time_for_different_sources, 0.2);
   nh_priv.param("threshold_max_delta_position", threshold_max_delta_position, 0.1);
@@ -586,6 +583,7 @@ int main(int argc, char** argv)
   std::string subscribe_topic;
   nh_priv.param("subscribe_topic", subscribe_topic, std::string("moving_objects"));
   int subscribe_buffer_size;
+  nh_priv.param("subscribe_buffer_size", subscribe_buffer_size, 10);
   ros::Subscriber sub = g_node->subscribe(subscribe_topic, 
                                           subscribe_buffer_size, 
                                           moaCallback);
