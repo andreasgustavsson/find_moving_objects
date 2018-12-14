@@ -67,6 +67,7 @@ namespace find_moving_objects
 
 /* CONFIDENCE CALCULATION FOR BANK */
 const double a = -10 / 3;
+double root_1=0.35, root_2=0.65; // optimized for bank coverage of 0.5s, adapted in hz calculation
 double Bank::calculateConfidence(const MovingObject & mo,
                                  const BankArgument & ba,
                                  const double dt,
@@ -86,7 +87,7 @@ double Bank::calculateConfidence(const MovingObject & mo,
            transform_new_time_fixed_frame_success &&
            transform_old_time_base_frame_success  &&
            transform_new_time_base_frame_success ? 0.5 : 0.0) + // transform success,
-          a*(dt*dt-1.0*dt+0.16) + // a well-adapted bank size in relation to the sensor rate and environmental context
+          a*(dt-root_1)*(dt-root_2) + // a well-adapted bank size in relation to the sensor rate and environmental context
           // (dt should be close to 0.5 seconds),
           (-5.0 * fabsf(mo.seen_width - mo_old_width))); // and low difference in width between old and new object,
           // make us more confident
@@ -246,6 +247,9 @@ void PointCloud2InterpreterNode::hzCalculationCallback(const sensor_msgs::PointC
     {
       bank_argument.nr_scans_in_bank = 2;
     }
+    
+    root_1 = optimize_nr_scans_in_bank * 0.6;
+    root_2 = optimize_nr_scans_in_bank * 1.4;
     
 #ifdef NODELET
     NODELET_INFO_STREAM("Topic " << subscribe_topic << " has rate " << hz << "Hz" << 

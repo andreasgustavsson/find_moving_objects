@@ -6,9 +6,9 @@
 See <a href="https://github.com/andreasgustavsson/find_moving_objects/blob/kinetic-devel/README.md">README.md</a>
 
 \section Messages Defined Messages
-- <a href="https://github.com/andreasgustavsson/find_moving_objects/blob/kinetic-devel/msg/MovingObject.msg">
+- <a href="http://docs.ros.org/kinetic/api/find_moving_objects/html/msg/MovingObject.html">
 MovingObject.msg</a>
-- <a href="https://github.com/andreasgustavsson/find_moving_objects/blob/kinetic-devel/msg/MovingObjectArray.msg">
+- <a href="http://docs.ros.org/kinetic/api/find_moving_objects/html/msg/MovingObjectArray.html">
 MovingObjectArray.msg</a>
 
 \section FindMovingObjectsAPI Find Moving Objects Code API

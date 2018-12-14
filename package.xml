@@ -2,22 +2,14 @@
 <package format="2">
   <name>find_moving_objects</name>
   <version>0.1.0</version>
-  <description>Find moving objects based on a laser scan or point cloud 2 data stream.</description>
+  <description>Find moving objects based on a laser scan or point cloud data stream.</description>
+  <author email="andrgust@gmail.com">Andreas Gustavsson</author>
   <maintainer email="andrgust@gmail.com">Andreas Gustavsson</maintainer>
   <license>BSD</license>
   
-  
-  <!-- Url tags are optional, but multiple are allowed, one per tag -->
-  <!-- Optional attribute type can be: website, bugtracker, or repository -->
-  <!-- Example: -->
   <url type="website">http://www.ros.org/wiki/find_moving_objects</url>
   <url type="sources">https://github.com/andreasgustavsson/find_moving_objects</url>
   
-  
-  <!-- Author tags are optional, multiple are allowed, one per tag -->
-  <!-- Authors do not have to be maintainers, but could be -->
-  <!-- Example: -->
-<!--   <author email="andrgust@gmail.com">Andreas Gustavsson</author> -->
   
   
   <!-- The *depend tags are used to specify dependencies -->
