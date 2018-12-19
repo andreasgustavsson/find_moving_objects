@@ -174,8 +174,8 @@ void * moaHandlerBody(void * arg)
   nh_priv.param("verbose", verbose, false);
   nh_priv.param("print_received_objects", print_received_objects, false);
   nh_priv.param("publish_objects", publish_objects, true);
-  nh_priv.param("publish_objects_closest_point_markers", publish_objects_closest_point_markers, false);
-  nh_priv.param("publish_objects_velocity_arrows", publish_objects_velocity_arrows, false);
+  nh_priv.param("publish_objects_closest_point_markers", publish_objects_closest_point_markers, true);
+  nh_priv.param("publish_objects_velocity_arrows", publish_objects_velocity_arrows, true);
   nh_priv.param("velocity_arrows_use_full_gray_scale", velocity_arrows_use_full_gray_scale, false);
   nh_priv.param("velocity_arrows_use_sensor_frame", velocity_arrows_use_sensor_frame_param, false);
   nh_priv.param("velocity_arrows_use_base_frame", velocity_arrows_use_base_frame_param, false);
@@ -184,7 +184,7 @@ void * moaHandlerBody(void * arg)
   nh_priv.param("threshold_max_delta_time_for_different_sources", threshold_max_delta_time_for_different_sources, 0.2);
   nh_priv.param("threshold_max_delta_position", threshold_max_delta_position, 0.1);
   nh_priv.param("threshold_max_delta_velocity", threshold_max_delta_velocity, 0.1);
-  nh_priv.param("ignore_z_map_coordinate_for_position", ignore_z_map_coordinate_for_position, false);
+  nh_priv.param("ignore_z_map_coordinate_for_position", ignore_z_map_coordinate_for_position, true);
   
   
   
