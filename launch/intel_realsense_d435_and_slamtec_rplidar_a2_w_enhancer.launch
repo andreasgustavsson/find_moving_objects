@@ -100,14 +100,7 @@
            name="subscribe_topic" value="scan" />
       <arg if="$(arg use_bag)" 
            name="subscribe_topic" value="scan_echoed" />
-      
       <arg name="topic_objects" value="/moving_objects" />
-      
-      <arg name="publish_ema"                            value="true"/>
-      <arg name="publish_objects_closest_points_markers" value="true"/>
-      <arg name="publish_objects_velocity_arrows"        value="true"/>
-      <arg name="publish_objects_delta_position_lines"   value="true"/>
-      <arg name="publish_objects_width_lines"            value="true"/>
     </include>
   </group>
   
@@ -151,12 +144,9 @@
            name="subscribe_topic" value="depth/color/points" />
       <arg if="$(eval arg('downscale_pointcloud') and not arg('use_bag'))" 
            name="subscribe_topic" value="depth/color/points/filtered" />
-      
       <arg name="topic_objects" value="/moving_objects" />
-      
-      <arg name="publish_objects_velocity_arrows"        value="true"/>
-      <arg name="publish_objects_delta_position_lines"   value="true"/>
-      <arg name="publish_objects_width_lines"            value="true"/>
+      <arg name="publish_ema" value="false"/>
+      <arg name="publish_objects_closest_points_markers" value="false"/>
     </include>
 </group>
   
@@ -167,9 +157,6 @@
         ns="confidence_enhancer"
         output="screen" >
     <param name="subscribe_topic" value="/moving_objects" />
-    <param name="publish_objects_closest_points_markers" value="true"/>
-    <param name="publish_objects_velocity_arrows"        value="true"/>
-    <param name="ignore_z_map_coordinate_for_position"   value="true" />
   </node>
   
   <!-- Run rviz for visualization -->

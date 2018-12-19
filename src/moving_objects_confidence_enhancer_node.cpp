@@ -157,7 +157,7 @@ void * moaHandlerBody(void * arg)
   bool verbose;
   bool print_received_objects;
   bool publish_objects;
-  bool publish_objects_closest_point_markers;
+  bool publish_objects_closest_points_markers;
   bool publish_objects_velocity_arrows;
   bool velocity_arrows_use_full_gray_scale;
   bool velocity_arrows_use_sensor_frame_param;
@@ -174,7 +174,7 @@ void * moaHandlerBody(void * arg)
   nh_priv.param("verbose", verbose, false);
   nh_priv.param("print_received_objects", print_received_objects, false);
   nh_priv.param("publish_objects", publish_objects, true);
-  nh_priv.param("publish_objects_closest_point_markers", publish_objects_closest_point_markers, true);
+  nh_priv.param("publish_objects_closest_points_markers", publish_objects_closest_points_markers, true);
   nh_priv.param("publish_objects_velocity_arrows", publish_objects_velocity_arrows, true);
   nh_priv.param("velocity_arrows_use_full_gray_scale", velocity_arrows_use_full_gray_scale, false);
   nh_priv.param("velocity_arrows_use_sensor_frame", velocity_arrows_use_sensor_frame_param, false);
@@ -215,7 +215,7 @@ void * moaHandlerBody(void * arg)
   const double resolution = TWO_PI / points;
   const double inverted_resolution = points / TWO_PI;
   const double out_of_range = range_max + 10.0;
-  if (publish_objects_closest_point_markers)
+  if (publish_objects_closest_points_markers)
   {
     msg_objects_closest_point_markers.header.seq = 0;
     msg_objects_closest_point_markers.angle_min = -M_PI;
@@ -419,7 +419,7 @@ void * moaHandlerBody(void * arg)
         }
       
         // Publish closest point markers
-        if (publish_objects_closest_point_markers)
+        if (publish_objects_closest_points_markers)
         {
           // Update sequence number and stamp
           msg_objects_closest_point_markers.header.seq++;
