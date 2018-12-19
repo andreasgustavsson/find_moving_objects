@@ -8,7 +8,7 @@
   <arg name="map_frame"                                          default="map"/>
   <arg name="fixed_frame"                                        default="odom"/>
   <arg name="base_frame"                                         default="base_link"/>
-  <arg name="nr_scans_in_bank"                                   default="2"/>
+  <arg name="nr_scans_in_bank"                                   default="0"/>
   <arg name="optimize_nr_scans_in_bank"                          default="0.5"/>
   <arg name="publish_objects"                                    default="true"/>
   <arg name="publish_ema"                                        default="true"/>
