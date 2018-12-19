@@ -345,8 +345,6 @@ void PointCloud2InterpreterNode::onInit()
   nh_priv.param("threshold_z_min", bank_argument.PC2_threshold_z_min, default_threshold_z_min);
   nh_priv.param("threshold_z_max", bank_argument.PC2_threshold_z_max, default_threshold_z_max);
   
-  nh_priv.setParam("dummy", 0.0);
-  
   // Z threshold sanity check
   if (bank_argument.PC2_threshold_z_max < bank_argument.PC2_threshold_z_min)
   {

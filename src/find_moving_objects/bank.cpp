@@ -124,7 +124,7 @@ BankArgument::BankArgument()
   object_threshold_bank_tracking_max_delta_distance = 0.2;
   base_confidence = 0.3;
   publish_objects = true;
-  publish_ema = false;
+  publish_ema = true;
   publish_objects_closest_point_markers = false;
   publish_objects_velocity_arrows = false;
   publish_objects_delta_position_lines = false;

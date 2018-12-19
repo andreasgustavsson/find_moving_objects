@@ -11,11 +11,11 @@
   <arg name="nr_scans_in_bank"                                   default="2"/>
   <arg name="optimize_nr_scans_in_bank"                          default="0.5"/>
   <arg name="publish_objects"                                    default="true"/>
-  <arg name="publish_ema"                                        default="false"/>
-  <arg name="publish_objects_closest_points_markers"             default="false"/>
-  <arg name="publish_objects_velocity_arrows"                    default="false"/>
-  <arg name="publish_objects_delta_position_lines"               default="false"/>
-  <arg name="publish_objects_width_lines"                        default="false"/>
+  <arg name="publish_ema"                                        default="true"/>
+  <arg name="publish_objects_closest_points_markers"             default="true"/>
+  <arg name="publish_objects_velocity_arrows"                    default="true"/>
+  <arg name="publish_objects_delta_position_lines"               default="true"/>
+  <arg name="publish_objects_width_lines"                        default="true"/>
   <arg name="publish_buffer_size"                                default="1"/>
   <arg name="topic_objects"                                      default="moving_objects"/>
   <arg name="topic_ema"                                          default="ema"/>

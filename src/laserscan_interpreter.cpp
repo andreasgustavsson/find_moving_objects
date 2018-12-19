@@ -331,7 +331,7 @@ void LaserScanInterpreterNode::onInit()
   nh_priv.param("topic_objects_width_lines", bank_argument.topic_objects_width_lines, default_topic_objects_width_lines);
   nh_priv.param("topic_objects", bank_argument.topic_objects, default_topic_objects);
   nh_priv.param("publish_buffer_size", bank_argument.publish_buffer_size, default_publish_buffer_size);
-  
+    
   // Optimize bank size?
   nh_priv.param("optimize_nr_scans_in_bank", optimize_nr_scans_in_bank, default_optimize_nr_scans_in_bank);
   
