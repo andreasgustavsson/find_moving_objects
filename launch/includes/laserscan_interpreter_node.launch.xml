@@ -39,7 +39,7 @@
 
   <node pkg="find_moving_objects"
         type="laserscan_interpreter_node"
-        name="laserscan_interpreter"
+        name="$(anon laserscan_interpreter)"
         output="screen">
     <param name="subscribe_topic"        type="str"    value="$(arg subscribe_topic)"/>
     <param name="subscribe_buffer_size"  type="int"    value="$(arg subscribe_buffer_size)"/>

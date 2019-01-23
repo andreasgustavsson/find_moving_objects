@@ -57,7 +57,7 @@
         output="screen"/>
   <node pkg="nodelet"
         type="nodelet"
-        name="pointcloud2_interpreter"
+        name="$(anon pointcloud2_interpreter)"
         args="load find_moving_objects/PointCloud2InterpreterNodelet $(arg manager)"
         output="screen">
     <param name="subscribe_topic"        type="str"    value="$(arg subscribe_topic)"/>

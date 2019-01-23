@@ -2202,7 +2202,7 @@ unsigned int Bank::putPoints(const sensor_msgs::PointCloud2::ConstPtr msg)
       // Is this point outside the considered volume?
       if (!bank_argument.sensor_frame_has_z_axis_forward)
       {
-        // Assume Z-axis is pointing up
+        // Assume Z-axis is pointing up and X-axis forward
         if (z < bank_argument.PC2_threshold_z_min || 
             bank_argument.PC2_threshold_z_max < z ||
             x < 0.02) 
@@ -2212,7 +2212,7 @@ unsigned int Bank::putPoints(const sensor_msgs::PointCloud2::ConstPtr msg)
       }
       else
       {
-        // Assume Y-axis is pointing down
+        // Assume Y-axis is pointing down and Z-axis forward
         if (-y < bank_argument.PC2_threshold_z_min || 
             bank_argument.PC2_threshold_z_max < -y ||
             z < 0.02) 

@@ -46,9 +46,10 @@
   <arg name="base_confidence"                                    default="0.3"/>
   
   
+  
   <node pkg="find_moving_objects"
         type="pointcloud2_interpreter_node"
-        name="pointcloud2_interpreter"
+        name="$(anon pointcloud2_interpreter)"
         output="screen">
     <param name="subscribe_topic"        type="str"    value="$(arg subscribe_topic)"/>
     <param name="subscribe_buffer_size"  type="int"    value="$(arg subscribe_buffer_size)"/>
