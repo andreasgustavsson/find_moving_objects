@@ -279,6 +279,12 @@ public:
    * Z-coordinate of the point, since the Y-axis is pointing down in that case.
    * Initialized to 1.0. */
   
+  std::string node_name_suffix;
+  /**< Add a suffix to the reported node name in the <code>origin_node_name</code> field of the  
+   * <code>MovingObjectArray</code> messages.
+   * Initialized to the empty string <code>""</code>.
+   */
+  
   /**
    * Initializes the member variables to the stated values.
    */
@@ -395,8 +401,12 @@ private:
   
   /* Basic functionality used by the functions below*/
   void initBank(BankArgument bank_argument);
-  virtual long addFirstMessage(sensor_msgs::LaserScan::ConstPtr);
-  virtual long addFirstMessage(sensor_msgs::PointCloud2::ConstPtr);
+//   virtual long addFirstMessage(const sensor_msgs::LaserScan::ConstPtr &);
+//   virtual long addFirstMessage(const sensor_msgs::PointCloud2::ConstPtr &, 
+//                                const bool discard_message_if_no_points_added);
+  virtual long addFirstMessage(const sensor_msgs::LaserScan *);
+  virtual long addFirstMessage(const sensor_msgs::PointCloud2 *, 
+                               const bool discard_message_if_no_points_added);
   inline void initIndex();
   inline void advanceIndex();
 //   void mergeFoundObjects(MovingObjectArray * moa);
@@ -428,7 +438,8 @@ private:
   int32_t PC2_message_x_bytes;
   int32_t PC2_message_y_bytes;
   int32_t PC2_message_z_bytes;
-  int getOffsetsAndBytes(BankArgument bank_argument, sensor_msgs::PointCloud2::ConstPtr msg);
+  int getOffsetsAndBytes(BankArgument bank_argument, const sensor_msgs::PointCloud2::ConstPtr msg);
+  int getOffsetsAndBytes(BankArgument bank_argument, const sensor_msgs::PointCloud2 * msg);
   bool machine_is_little_endian; // set in constructor
   void reverseBytes(byte_t * bytes, unsigned int nr_bytes);
   void readPoint(const byte_t * start_of_point,
@@ -438,6 +449,7 @@ private:
                  double * z);
   void resetPutPoints();
   unsigned int putPoints(const sensor_msgs::PointCloud2::ConstPtr msg);
+  unsigned int putPoints(const sensor_msgs::PointCloud2 * msg);
   void emaPutMessage();
   std::string getStringPutPoints();
   
@@ -446,25 +458,32 @@ private:
   
 public:
   /**
-   * Creates an instance of Bank and starts a <code>tf::tfListener</code>.
+   * Creates an instance of Bank and starts a <code>tf::TransformListener</code>.
    */
   Bank();
+  
+  /**
+   * Creates an instance of Bank and uses the given <code>tf::TransformListener</code>.
+   */
+  Bank(tf::TransformListener * listener);
   
   /**
    * De-allocates reserved memory for the bank.
    */
   ~Bank();
   
-  /**
-   * Initiate bank with received data, if possible.
-   * 
-   * This function should be called repeatedly until it succeeds (i.e. returns 0), after this, 
-   * it should not be called again (doing so would compromise the stored data)!
-   * @param bank_argument An instance of <code>BankArgument</code>, specifying the behavior of the bank.
-   * @param msg The first received message to be added to the bank.
-   * @return 0 on success, -1 if this function must be called again.
-   */
-  virtual long init(BankArgument bank_argument, sensor_msgs::LaserScan::ConstPtr msg);
+  
+  
+//   /**
+//    * Initiate bank with received data, if possible.
+//    * 
+//    * This function should be called repeatedly until it succeeds (i.e. returns 0), after this, 
+//    * it should not be called again (doing so would compromise the stored data)!
+//    * @param bank_argument An instance of <code>BankArgument</code>, specifying the behavior of the bank.
+//    * @param msg Pointer to the first received message to be added to the bank.
+//    * @return 0 on success, -1 if this function must be called again.
+//    */
+//   virtual long init(BankArgument bank_argument, const sensor_msgs::LaserScan::ConstPtr & msg);
   
   /**
    * Initiate bank with received data, if possible.
@@ -472,27 +491,74 @@ public:
    * This function should be called repeatedly until it succeeds (i.e. returns 0), after this, 
    * it should not be called again (doing so would compromise the stored data)!
    * @param bank_argument An instance of <code>BankArgument</code>, specifying the behavior of the bank.
-   * @param msg The first received message to be added to the bank.
+   * @param msg Pointer to the first received message to be added to the bank.
    * @return 0 on success, -1 if this function must be called again.
    */
-  virtual long init(BankArgument bank_argument, sensor_msgs::PointCloud2::ConstPtr msg);
+  virtual long init(BankArgument bank_argument, const sensor_msgs::LaserScan * msg);
+  
+//   /**
+//    * Initiate bank with received data, if possible.
+//    * 
+//    * This function should be called repeatedly until it succeeds (i.e. returns 0), after this, 
+//    * it should not be called again (doing so would compromise the stored data)!
+//    * @param bank_argument An instance of <code>BankArgument</code>, specifying the behavior of the bank.
+//    * @param msg Pointer to the first received message to be added to the bank.
+//    * @return 0 on success, -1 if this function must be called again.
+//    */
+//   virtual long init(BankArgument bank_argument, const sensor_msgs::PointCloud2::ConstPtr & msg, 
+//                                                 const bool discard_message_if_no_points_added = true);
+  
+  /**
+   * Initiate bank with received data, if possible.
+   * 
+   * This function should be called repeatedly until it succeeds (i.e. returns 0), after this, 
+   * it should not be called again (doing so would compromise the stored data)!
+   * @param bank_argument An instance of <code>BankArgument</code>, specifying the behavior of the bank.
+   * @param msg Pointer to the first received message to be added to the bank.
+   * @return 0 on success, -1 if this function must be called again.
+   */
+  virtual long init(BankArgument bank_argument, const sensor_msgs::PointCloud2 * msg, 
+                                                const bool discard_message_if_no_points_added = true);
+  
+  
+  
+//   /**
+//    * Add a <code>sensor_msgs::LaserScan</code> message to the bank (replace the oldest scan message).
+//    * 
+//    * @param msg Pointer to the received message to be added to the bank.
+//    * @return 0.
+//    */
+//   virtual long addMessage(const sensor_msgs::LaserScan::ConstPtr & msg);
   
   /**
    * Add a <code>sensor_msgs::LaserScan</code> message to the bank (replace the oldest scan message).
    * 
-   * @param msg The received message to be added to the bank.
+   * @param msg Pointer to the received message to be added to the bank.
    * @return 0.
    */
-  virtual long addMessage(sensor_msgs::LaserScan::ConstPtr msg);
+  virtual long addMessage(const sensor_msgs::LaserScan * msg);
+  
+//   /**
+//    * Add a <code>sensor_msgs::PointCloud2</code> message to the bank (replace the oldest scan message).
+//    * 
+//    * @param msg Pointer to the received message to be added to the bank.
+//    * @return 0 on success, -1 if adding this message failed.
+//    */
+//   
+//   virtual long addMessage(const sensor_msgs::PointCloud2::ConstPtr & msg, 
+//                           const bool discard_message_if_no_points_added = true);
   
   /**
    * Add a <code>sensor_msgs::PointCloud2</code> message to the bank (replace the oldest scan message).
    * 
-   * @param msg The received message to be added to the bank.
+   * @param msg Pointer to the received message to be added to the bank.
    * @return 0 on success, -1 if adding this message failed.
    */
-  virtual long addMessage(sensor_msgs::PointCloud2::ConstPtr msg);
-    
+  virtual long addMessage(const sensor_msgs::PointCloud2 * msg, 
+                          const bool discard_message_if_no_points_added = true);
+  
+  
+  
   /**
    * Find moving objects based on the contents of the bank, and possibly report them.
    */
@@ -531,6 +597,12 @@ public:
                                      const bool transform_old_time_base_frame_success,
                                      const bool transform_new_time_base_frame_success);
 };
+
+// template<typename BaseClass, typename T>
+// inline bool instanceof(const T *ptr) 
+// {
+//   return dynamic_cast<const BaseClass*>(ptr) != nullptr;
+// }
 
 } // namespace find_moving_objects
 

@@ -37,13 +37,19 @@
 /* ROS */
 #include <ros/ros.h>
 #include <sensor_msgs/LaserScan.h>
+
 #ifdef NODELET
 #include <pluginlib/class_list_macros.h>
 #endif
+
 /* C/C++ */
 #include <iostream>
 #include <cmath>
 #include <pthread.h>
+
+// #ifdef LSARRAY
+// #include <omp.h>
+// #endif
 
 /* LOCAL INCLUDES */
 #include <find_moving_objects/bank.h>
@@ -52,7 +58,11 @@
 
 #ifdef NODELET
 /* TELL ROS ABOUT THIS NODELET PLUGIN */
+# ifdef LSARRAY
+PLUGINLIB_EXPORT_CLASS(find_moving_objects::LaserScanArrayInterpreterNodelet, nodelet::Nodelet)
+# else
 PLUGINLIB_EXPORT_CLASS(find_moving_objects::LaserScanInterpreterNodelet, nodelet::Nodelet)
+# endif
 #endif
 
 
@@ -94,12 +104,21 @@ double Bank::calculateConfidence(const MovingObject & mo,
 }
 
 
+
 /* CONSTRUCTOR */
 #ifdef NODELET
+# ifdef LSARRAY
+LaserScanArrayInterpreterNodelet::LaserScanArrayInterpreterNodelet()
+# else
 LaserScanInterpreterNodelet::LaserScanInterpreterNodelet()
+# endif
 #endif
 #ifdef NODE
+# ifdef LSARRAY
+LaserScanArrayInterpreterNode::LaserScanArrayInterpreterNode()
+# else
 LaserScanInterpreterNode::LaserScanInterpreterNode()
+# endif
 #endif
 : received_messages(0),
   optimize_nr_scans_in_bank(0.0)
@@ -109,92 +128,225 @@ LaserScanInterpreterNode::LaserScanInterpreterNode()
   ros::Time::waitForValid();
 #endif
   
+#ifndef LSARRAY
   // Start collecting tf data
   bank = new find_moving_objects::Bank;
+#endif
   
 #ifdef NODE
   onInit();
 #endif
 }
 
+
+
 /* DESTRUCTOR */
-#ifdef NODELET
+#ifdef LSARRAY
+# ifdef NODELET
+LaserScanArrayInterpreterNodelet::~LaserScanArrayInterpreterNodelet()
+# endif
+# ifdef NODE
+LaserScanArrayInterpreterNode::~LaserScanArrayInterpreterNode()
+# endif
+{
+  int nr_banks = banks.size();
+  for (int i=0; i<nr_banks; ++i)
+  {
+    delete banks[i];
+  }
+  banks.clear();
+}
+#else
+# ifdef NODELET
 LaserScanInterpreterNodelet::~LaserScanInterpreterNodelet()
-#endif
-#ifdef NODE
+# endif
+# ifdef NODE
 LaserScanInterpreterNode::~LaserScanInterpreterNode()
-#endif
+# endif
 {
   delete bank;
 }
+#endif
 
 
 
 /* CALLBACK FOR FIRST MESSAGE */
-#ifdef NODELET
+#ifdef LSARRAY
+# ifdef NODELET
+void LaserScanArrayInterpreterNodelet::laserScanArrayCallbackFirst(const find_moving_objects::LaserScanArray::ConstPtr & msg)
+# endif
+# ifdef NODE
+void LaserScanArrayInterpreterNode::laserScanArrayCallbackFirst(const find_moving_objects::LaserScanArray::ConstPtr & msg)
+# endif
+#else
+# ifdef NODELET
 void LaserScanInterpreterNodelet::laserScanCallbackFirst(const sensor_msgs::LaserScan::ConstPtr & msg)
-#endif
-#ifdef NODE
+# endif
+# ifdef NODE
 void LaserScanInterpreterNode::laserScanCallbackFirst(const sensor_msgs::LaserScan::ConstPtr & msg)
+# endif
 #endif
 { 
   // Debug frame to see e.g. if we are dealing with an optical frame
+#ifdef LSARRAY
+  if (0 < msg->msgs.size())
+  {
+# ifdef NODELET
+    NODELET_DEBUG_STREAM("PointCloud2 sensor is using frame: " << msg->msgs[0].header.frame_id);
+# endif
+# ifdef NODE
+    ROS_DEBUG_STREAM("PointCloud2 sensor is using frame: " << msg->msgs[0].header.frame_id);
+# endif
+  }
+#else
 #ifdef NODELET
-  NODELET_DEBUG_STREAM("LaserScan sensor is using frame: " << msg->header.frame_id);
-#endif
-#ifdef NODE
+   NODELET_DEBUG_STREAM("LaserScan sensor is using frame: " << msg->header.frame_id);
+# endif
+# ifdef NODE
   ROS_DEBUG_STREAM("LaserScan sensor is using frame: " << msg->header.frame_id);
+# endif
 #endif
 
-  // Init bank
-  if (bank->init(bank_argument, msg) == 0)
+#ifdef LSARRAY
+  // Create banks
+  const int nr_msgs = msg->msgs.size();
+  if (banks.size() == 0)
   {
+    // If reaching this point, then this block has not been executed before
+    // If it has, then it will not be executed again, and the modifications to banks and bank_arguments are hence 
+    // maintained valid, assuming that the new message contains the same number of messages in the array
+    bank_arguments.resize(nr_msgs);
+    banks.resize(nr_msgs);
+    for (int i=0; i<nr_msgs; ++i)
+    {
+      // Create bank and start listening to tf data
+      banks[i] = new find_moving_objects::Bank(tfListener);
+      
+      // Copy first bank argument
+      bank_arguments[i] = bank_arguments[0];
+    }
+    
+    // Modify bank arguments
+    for (int i=0; i<nr_msgs; ++i)
+    {
+      const std::string append_str = "_" + std::to_string(i);
+      bank_arguments[i].topic_ema.append(append_str);
+      bank_arguments[i].topic_objects_closest_point_markers.append(append_str);
+      bank_arguments[i].topic_objects_velocity_arrows.append(append_str);
+      bank_arguments[i].topic_objects_delta_position_lines.append(append_str);
+      bank_arguments[i].topic_objects_width_lines.append(append_str);
+      
+      bank_arguments[i].velocity_arrow_ns.append(append_str);
+      bank_arguments[i].delta_position_line_ns.append(append_str);
+      bank_arguments[i].width_line_ns.append(append_str);
+      
+      bank_arguments[i].node_name_suffix.append(append_str);
+    }
+  }
+  
+  for (int i=0; i<nr_msgs; ++i)
+  {
+    // Init banks
+    banks[i]->init(bank_arguments[i], &(msg->msgs[i])); // addFirstMessage always succeeds, no bool needed for init!
+  }
+  // Now change callback regardless of init outcome
+#else
+  // Init bank
+  if (bank->init(bank_argument, &(*msg)) != 0)
+  {
+    // If init fails (should never happen for LaserScan) we do not change callback, but use this one again
+    return;
+  }
+#endif
+  
     // Use the other callback from now on
 #ifdef NODELET
-    ros::NodeHandle nh = getNodeHandle();
+  ros::NodeHandle nh = getNodeHandle();
 #endif
 #ifdef NODE
-    ros::NodeHandle nh;
+  ros::NodeHandle nh;
 #endif
-    sub = nh.subscribe(subscribe_topic,
-                       subscribe_buffer_size,
+  sub = nh.subscribe(subscribe_topic,
+                     subscribe_buffer_size,
 #ifdef NODELET
-                       &LaserScanInterpreterNodelet::laserScanCallback, 
+# ifdef LSARRAY
+                     &LaserScanArrayInterpreterNodelet::laserScanArrayCallback, 
+# else
+                     &LaserScanInterpreterNodelet::laserScanCallback, 
+# endif
 #endif
 #ifdef NODE
-                       &LaserScanInterpreterNode::laserScanCallback, 
+# ifdef LSARRAY
+                     &LaserScanArrayInterpreterNode::laserScanArrayCallback, 
+# else
+                     &LaserScanInterpreterNode::laserScanCallback, 
+# endif
 #endif
-                       this);
-  }
+                     this);
 }
 
 
 /* CALLBACK FOR ALL BUT THE FIRST MESSAGE */
-#ifdef NODELET
+#ifdef LSARRAY
+# ifdef NODELET
+void LaserScanArrayInterpreterNodelet::laserScanArrayCallback(const find_moving_objects::LaserScanArray::ConstPtr & msg)
+# endif
+# ifdef NODE
+void LaserScanArrayInterpreterNode::laserScanArrayCallback(const find_moving_objects::LaserScanArray::ConstPtr & msg)
+# endif
+#else
+# ifdef NODELET
 void LaserScanInterpreterNodelet::laserScanCallback(const sensor_msgs::LaserScan::ConstPtr & msg)
-#endif
-#ifdef NODE
+# endif
+# ifdef NODE
 void LaserScanInterpreterNode::laserScanCallback(const sensor_msgs::LaserScan::ConstPtr & msg)
+# endif
 #endif
 {
-  // Can message be added to bank?
-  if (bank->addMessage(msg) != 0)
+#ifdef LSARRAY
+  // Consider the msgs of msg in parallel
+// #pragma omp parallel for
+  for (int i=0; i<msg->msgs.size(); ++i)
   {
-    // Adding message failed
+    // Can message be added to bank?
+    if (banks[i]->addMessage(&(msg->msgs[i])) != 0)
+    {
+      // Adding message failed (should never happen for LaserScan), try the next one
+      continue;
+    }
+
+    // If so, then find and report objects
+    banks[i]->findAndReportMovingObjects();
+  }
+#else
+  // Can message be added to bank?
+  if (bank->addMessage(&(*msg)) != 0)
+  {
+    // Adding message failed (should never happen for LaserScan)
     return;
   }
 
   // If so, then find and report objects
   bank->findAndReportMovingObjects();
+#endif
 }
 
 
 /* CALLBACK FOR WAITING UNTIL THE FIRST MESSAGE WAS RECEIVED - HZ CALCULATION */
-#ifdef NODELET
+#ifdef LSARRAY
+# ifdef NODELET
+void LaserScanArrayInterpreterNodelet::waitForFirstMessageCallback(const find_moving_objects::LaserScanArray::ConstPtr & msg) 
+# endif
+# ifdef NODE
+void LaserScanArrayInterpreterNode::waitForFirstMessageCallback(const find_moving_objects::LaserScanArray::ConstPtr & msg)
+# endif
+#else
+# ifdef NODELET
 void LaserScanInterpreterNodelet::waitForFirstMessageCallback(const sensor_msgs::LaserScan::ConstPtr & msg) 
-#endif
-#ifdef NODE
+# endif
+# ifdef NODE
 void LaserScanInterpreterNode::waitForFirstMessageCallback(const sensor_msgs::LaserScan::ConstPtr & msg)
+# endif
 #endif
 {
   // Set start time
@@ -208,23 +360,41 @@ void LaserScanInterpreterNode::waitForFirstMessageCallback(const sensor_msgs::La
   ros::NodeHandle nh;
 #endif
   sub = nh.subscribe(subscribe_topic,
-                       subscribe_buffer_size,
-#ifdef NODELET
-                       &LaserScanInterpreterNodelet::hzCalculationCallback,
+                     subscribe_buffer_size,
+#ifdef LSARRAY
+# ifdef NODELET
+                     &LaserScanArrayInterpreterNodelet::hzCalculationCallback,
+# endif
+# ifdef NODE
+                     &LaserScanArrayInterpreterNode::hzCalculationCallback,
+# endif
+#else
+# ifdef NODELET
+                     &LaserScanInterpreterNodelet::hzCalculationCallback,
+# endif
+# ifdef NODE
+                     &LaserScanInterpreterNode::hzCalculationCallback,
+# endif
 #endif
-#ifdef NODE
-                       &LaserScanInterpreterNode::hzCalculationCallback,
-#endif
-                       this);
+                     this);
 }
 
 
 /* CALLBACK FOR HZ CALCULATION */
-#ifdef NODELET
+#ifdef LSARRAY
+# ifdef NODELET
+void LaserScanArrayInterpreterNodelet::hzCalculationCallback(const find_moving_objects::LaserScanArray::ConstPtr & msg)
+# endif
+# ifdef NODE
+void LaserScanArrayInterpreterNode::hzCalculationCallback(const find_moving_objects::LaserScanArray::ConstPtr & msg)
+# endif
+#else
+# ifdef NODELET
 void LaserScanInterpreterNodelet::hzCalculationCallback(const sensor_msgs::LaserScan::ConstPtr & msg)
-#endif
-#ifdef NODE
+# endif
+# ifdef NODE
 void LaserScanInterpreterNode::hzCalculationCallback(const sensor_msgs::LaserScan::ConstPtr & msg)
+# endif
 #endif
 {
   // spin until target is reached
@@ -240,6 +410,15 @@ void LaserScanInterpreterNode::hzCalculationCallback(const sensor_msgs::LaserSca
     
     // Set nr of messages in bank
     const double nr_scans = optimize_nr_scans_in_bank * hz;
+#ifdef LSARRAY
+    bank_arguments[0].nr_scans_in_bank = nr_scans - ((long) nr_scans) == 0.0 ? nr_scans + 1 : ceil(nr_scans);
+    
+    // Sanity check
+    if (bank_arguments[0].nr_scans_in_bank < 2)
+    {
+      bank_arguments[0].nr_scans_in_bank = 2;
+    }
+#else
     bank_argument.nr_scans_in_bank = nr_scans - ((long) nr_scans) == 0.0 ? nr_scans + 1 : ceil(nr_scans);
     
     // Sanity check
@@ -247,6 +426,7 @@ void LaserScanInterpreterNode::hzCalculationCallback(const sensor_msgs::LaserSca
     {
       bank_argument.nr_scans_in_bank = 2;
     }
+#endif
     
     root_1 = optimize_nr_scans_in_bank * 0.6;
     root_2 = optimize_nr_scans_in_bank * 1.4;
@@ -254,25 +434,41 @@ void LaserScanInterpreterNode::hzCalculationCallback(const sensor_msgs::LaserSca
 #ifdef NODELET
     NODELET_INFO_STREAM("Topic " << subscribe_topic << " has rate " << hz << "Hz" << 
                         " (based on " << received_messages << " msgs during " << elapsed_time << " seconds)");
+# ifdef LSARRAY
+    NODELET_INFO_STREAM("Optimized bank size is " << bank_arguments[0].nr_scans_in_bank);
+# else
     NODELET_INFO_STREAM("Optimized bank size is " << bank_argument.nr_scans_in_bank);
+# endif
     
     // Update subscriber with new callback
     ros::NodeHandle nh = getNodeHandle();
     sub = nh.subscribe(subscribe_topic,
                        subscribe_buffer_size,
+# ifdef LSARRAY
+                       &LaserScanArrayInterpreterNodelet::laserScanArrayCallbackFirst,
+# else
                        &LaserScanInterpreterNodelet::laserScanCallbackFirst,
+# endif
                        this);
 #endif
 #ifdef NODE
     ROS_INFO_STREAM("Topic " << subscribe_topic << " has rate " << hz << "Hz" << 
                         " (based on " << received_messages << " msgs during " << elapsed_time << " seconds)");
+# ifdef LSARRAY
+    ROS_INFO_STREAM("Optimized bank size is " << bank_arguments[0].nr_scans_in_bank);
+# else
     ROS_INFO_STREAM("Optimized bank size is " << bank_argument.nr_scans_in_bank);
+# endif
     
     // Update subscriber with new callback
     ros::NodeHandle nh;
     sub = nh.subscribe(subscribe_topic,
                        subscribe_buffer_size,
+# ifdef LSARRAY
+                       &LaserScanArrayInterpreterNode::laserScanArrayCallbackFirst,
+# else
                        &LaserScanInterpreterNode::laserScanCallbackFirst,
+# endif
                        this);
 #endif
   }
@@ -281,14 +477,22 @@ void LaserScanInterpreterNode::hzCalculationCallback(const sensor_msgs::LaserSca
 
 /* ENTRY POINT FOR NODELET AND INIT FOR NODE */
 #ifdef NODELET
+# ifdef LSARRAY
+void LaserScanArrayInterpreterNodelet::onInit()
+# else
 void LaserScanInterpreterNodelet::onInit()
+# endif
 {
   // Node handles
   ros::NodeHandle nh = getNodeHandle();
   ros::NodeHandle nh_priv = getPrivateNodeHandle();
 #endif
 #ifdef NODE
+# ifdef LSARRAY
+void LaserScanArrayInterpreterNode::onInit()
+# else
 void LaserScanInterpreterNode::onInit()
+# endif
 {
   // Node handles
   ros::NodeHandle nh;
@@ -296,6 +500,9 @@ void LaserScanInterpreterNode::onInit()
 #endif
   
   // Init bank_argument with parameters
+#ifdef LSARRAY
+  BankArgument bank_argument;
+#endif
   nh_priv.param("subscribe_topic", subscribe_topic, default_subscribe_topic);
   nh_priv.param("subscribe_buffer_size", subscribe_buffer_size, default_subscribe_buffer_size);
   nh_priv.param("ema_alpha", bank_argument.ema_alpha, default_ema_alpha);
@@ -332,6 +539,14 @@ void LaserScanInterpreterNode::onInit()
   nh_priv.param("topic_objects", bank_argument.topic_objects, default_topic_objects);
   nh_priv.param("publish_buffer_size", bank_argument.publish_buffer_size, default_publish_buffer_size);
     
+#ifdef LSARRAY
+  // Add this as the first bank_argument
+  bank_arguments.push_back(bank_argument);
+  
+  // Create TF listener
+  tfListener = new tf::TransformListener;
+#endif
+  
   // Optimize bank size?
   nh_priv.param("optimize_nr_scans_in_bank", optimize_nr_scans_in_bank, default_optimize_nr_scans_in_bank);
   
@@ -342,10 +557,18 @@ void LaserScanInterpreterNode::onInit()
     sub = nh.subscribe(subscribe_topic,
                        subscribe_buffer_size,
 #ifdef NODELET
+# ifdef LSARRAY
+                       &LaserScanArrayInterpreterNodelet::waitForFirstMessageCallback,
+# else
                        &LaserScanInterpreterNodelet::waitForFirstMessageCallback,
+# endif
 #endif
 #ifdef NODE
+# ifdef LSARRAY
+                       &LaserScanArrayInterpreterNode::waitForFirstMessageCallback,
+# else
                        &LaserScanInterpreterNode::waitForFirstMessageCallback,
+# endif
 #endif
                        this);
   }
@@ -355,10 +578,18 @@ void LaserScanInterpreterNode::onInit()
     sub = nh.subscribe(subscribe_topic,
                        subscribe_buffer_size,
 #ifdef NODELET
+# ifdef LSARRAY
+                       &LaserScanArrayInterpreterNodelet::laserScanArrayCallbackFirst,
+# else
                        &LaserScanInterpreterNodelet::laserScanCallbackFirst,
+# endif
 #endif
 #ifdef NODE
+# ifdef LSARRAY
+                       &LaserScanArrayInterpreterNode::laserScanArrayCallbackFirst,
+# else
                        &LaserScanInterpreterNode::laserScanCallbackFirst,
+# endif
 #endif
                        this);
   }
@@ -372,11 +603,19 @@ using namespace find_moving_objects;
 /* ENTRY POINT */
 int main (int argc, char ** argv)
 {
+#ifdef LSARRAY
+  // Init ROS
+  ros::init(argc, argv, "pointcloud2array_interpreter", ros::init_options::AnonymousName);
+
+  // Create and init node object
+  LaserScanArrayInterpreterNode pc2interpreter;
+#else
   // Init ROS
   ros::init(argc, argv, "laserscan_interpreter", ros::init_options::AnonymousName);
   
   // Create and init node object
   LaserScanInterpreterNode pc2interpreter;
+#endif
   
   // Enter receive loop
   ros::spin();

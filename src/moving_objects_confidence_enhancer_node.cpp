@@ -298,7 +298,7 @@ void * moaHandlerBody(void * arg)
              << " (sender " << sender_index+1 << "/" << nr_senders << "):" << std::endl \
              << *msg_sender << std::endl;
       std::string string = stream.str();
-      ROS_INFO("%s", string.c_str());
+      ROS_DEBUG("%s", string.c_str());
     }
     
     // Look at each object and see if we can find an appropriate object in the latest message from each other sender
@@ -352,17 +352,14 @@ void * moaHandlerBody(void * arg)
               
               // Compare stamps to see if objects occur with low enough difference in time
               if (fabs(sender_stamp - other_stamp) < threshold_max_delta_time_for_different_sources)
-              {
-                // We found another sender that has a message sent within the given time threshold
-                nr_matching_senders++;
-                
+              {                
                 // Loop over other objects to find a corresponding one
                 for (unsigned int k=0; k<nr_other_objects; ++k)
                 {
                   // Local pointer to the kth sender object
                   const find_moving_objects::MovingObject * other_mo = & (msg_other->objects[k]);
                   
-                  // Compare position and velocity in fixed frame (assume this frame is the same for all sources)
+                  // Compare position and velocity in global frame (assume this frame is the same for all sources)
                   const double dx = sender_mo->position_in_map_frame.x - other_mo->position_in_map_frame.x;
                   const double dy = sender_mo->position_in_map_frame.y - other_mo->position_in_map_frame.y;
                   const double dz = ignore_z_map_coordinate_for_position ?
@@ -375,11 +372,17 @@ void * moaHandlerBody(void * arg)
                   const double dvz = sender_mo->velocity_in_map_frame.z - other_mo->velocity_in_map_frame.z;
                   const double dv2  = dvx*dvx + dvy*dvy + dvz*dvz;
                   
+//                   ROS_WARN_STREAM("dp2 = " << dp2 << "  (" << threshold_max_delta_position_line_squared << ")   dv2 = "
+//                      << dv2 << "  (" << threshold_max_delta_velocity_squared << ")");
+                  
                   // Are the objects quite the same?
                   // Adapt confidence accordingly
                   if (dp2 < threshold_max_delta_position_line_squared &&
                       dv2 < threshold_max_delta_velocity_squared)
                   {
+                    // We found another sender that has a message sent within the given time threshold and with an
+                    // object matching the current one
+                    nr_matching_senders++;
                     confidence_sum += other_mo->confidence;
                     break; // Go to next sender
                   }
@@ -388,6 +391,8 @@ void * moaHandlerBody(void * arg)
             }
           }
         }
+        
+        ROS_DEBUG_STREAM("Increasing confidence of object based on " << nr_matching_senders << " matching senders");
         
         // Update confidence of object for the object in the output msg
         double confidence = sender_mo->confidence;

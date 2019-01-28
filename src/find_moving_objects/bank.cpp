@@ -156,6 +156,8 @@ BankArgument::BankArgument()
   PC2_voxel_leaf_size = 0.02;
   PC2_threshold_z_min = 0.1;
   PC2_threshold_z_max = 1.0;
+  
+  node_name_suffix = "";
 }
 
 std::ostream& operator<<(std::ostream & os, const BankArgument & ba)
@@ -188,6 +190,7 @@ std::ostream& operator<<(std::ostream & os, const BankArgument & ba)
     "  velocity_arrows_use_fixed_frame = " << ba.velocity_arrows_use_fixed_frame << std::endl <<
     "  velocity_arrow_ns = " << ba.velocity_arrow_ns << std::endl <<
     "  delta_position_line_ns = " << ba.delta_position_line_ns << std::endl <<
+    "  width_line_ns = " << ba.width_line_ns << std::endl <<
     "  topic_objects = " << ba.topic_objects << std::endl <<
     "  topic_ema = " << ba.topic_ema << std::endl <<
     "  topic_objects_closest_point_markers = " << ba.topic_objects_closest_point_markers << std::endl <<
@@ -216,7 +219,8 @@ std::ostream& operator<<(std::ostream & os, const BankArgument & ba)
     "  time_increment = " << ba.time_increment << std::endl << 
     "  scan_time = " << ba.scan_time << std::endl << 
     "  range_min = " << ba.range_min << std::endl <<
-    "  range_max = " << ba.range_max << std::endl;
+    "  range_max = " << ba.range_max << std::endl <<
+    "  node_name_suffix = " << ba.node_name_suffix << std::endl;
   
   return os;
 }
@@ -235,7 +239,22 @@ Bank::Bank()
   
   /* Create TF listener */
   tfListener = new tf::TransformListener;
-//   sleep(2); // Start collecting transform information, just in case...
+}
+
+Bank::Bank(tf::TransformListener * listener)
+{
+  bank_is_initialized = false;
+  bank_is_filled = false;
+  
+  /* Check endianness in case of PointCloud2 */
+  volatile uint32_t dummy = 0x01234567; // If little endian, then 0x67 is the value at the lowest memory address
+  machine_is_little_endian = (*((uint8_t*)(&dummy))) == 0x67;
+  
+  /* Create handle to this node */
+  node = new ros::NodeHandle;
+  
+  /* Assign TF listener */
+  tfListener = listener;
 }
 
 /*
@@ -1670,7 +1689,7 @@ void Bank::findAndReportMovingObjects()
   ++moa_seq;
   if (bank_argument.publish_objects && 0 < moa.objects.size())
   {
-    moa.origin_node_name = ros::this_node::getName();
+    moa.origin_node_name = ros::this_node::getName() + bank_argument.node_name_suffix;
     
     // Publish MOA message
     pub_objects.publish(moa);
@@ -2076,6 +2095,159 @@ int Bank::getOffsetsAndBytes(BankArgument bank_argument, sensor_msgs::PointCloud
   }
 }
 
+int Bank::getOffsetsAndBytes(BankArgument bank_argument, const sensor_msgs::PointCloud2 * msg)
+{
+  PC2_message_x_offset = -1;
+  PC2_message_x_bytes = -1;
+  PC2_message_y_offset = -1;
+  PC2_message_y_bytes = -1;
+  PC2_message_z_offset = -1;
+  PC2_message_z_bytes = -1;
+  const bool must_reverse_bytes = (msg->is_bigendian != !machine_is_little_endian);
+  const unsigned int fields = msg->fields.size();
+  byte_t tmp_byte4[4]; // Used for reading offset, count = 1 (ROS: uint32)
+  byte_t tmp_byte;     // Used for reading datatype 
+  
+  for (unsigned int i=0; i<fields; ++i)
+  {
+    // X
+    if (strcmp(bank_argument.PC2_message_x_coordinate_field_name.c_str(), 
+               msg->fields[i].name.c_str()) == 0)
+    {
+      // Read offset
+      memcpy(&tmp_byte4[0], &msg->fields[i].offset, 4);
+      if (must_reverse_bytes)
+      {
+        reverseBytes(tmp_byte4, 4);
+      }
+      memcpy(&PC2_message_x_offset, tmp_byte4, 4);
+      
+      // Read datatype
+      tmp_byte = msg->fields[i].datatype;
+      if (tmp_byte == sensor_msgs::PointField::INT8 || 
+          tmp_byte == sensor_msgs::PointField::UINT8)
+      {
+        PC2_message_x_bytes = 1;
+      }
+      else if (tmp_byte == sensor_msgs::PointField::INT16 || 
+               tmp_byte == sensor_msgs::PointField::UINT16)
+      {
+        PC2_message_x_bytes = 2;
+      }
+      else if (tmp_byte == sensor_msgs::PointField::INT32 || 
+               tmp_byte == sensor_msgs::PointField::UINT32 || 
+               tmp_byte == sensor_msgs::PointField::FLOAT32)
+      {
+        PC2_message_x_bytes = 4;
+      }
+      else if (tmp_byte == sensor_msgs::PointField::FLOAT64)
+      {
+        PC2_message_x_bytes = 8;
+      }
+      else
+      {
+        ROS_ERROR("Cannot determine number of bytes for X coordinate");
+        return -1;
+      }
+    }
+    // Y
+    else if (strcmp(bank_argument.PC2_message_y_coordinate_field_name.c_str(), 
+                    msg->fields[i].name.c_str()) == 0)
+    {
+      // Read offset
+      memcpy(&tmp_byte4[0], &msg->fields[i].offset, 4);
+      if (must_reverse_bytes)
+      {
+        reverseBytes(tmp_byte4, 4);
+      }
+      memcpy(&PC2_message_y_offset, tmp_byte4, 4);
+      
+      // Read datatype
+      tmp_byte = msg->fields[i].datatype;
+      if (tmp_byte == sensor_msgs::PointField::INT8 || 
+          tmp_byte == sensor_msgs::PointField::UINT8)
+      {
+        PC2_message_y_bytes = 1;
+      }
+      else if (tmp_byte == sensor_msgs::PointField::INT16 || 
+               tmp_byte == sensor_msgs::PointField::UINT16)
+      {
+        PC2_message_y_bytes = 2;
+      }
+      else if (tmp_byte == sensor_msgs::PointField::INT32 || 
+               tmp_byte == sensor_msgs::PointField::UINT32 || 
+               tmp_byte == sensor_msgs::PointField::FLOAT32)
+      {
+        PC2_message_y_bytes = 4;
+      }
+      else if (tmp_byte == sensor_msgs::PointField::FLOAT64)
+      {
+        PC2_message_y_bytes = 8;
+      }
+      else
+      {
+        ROS_ERROR("Cannot determine number of bytes for Y coordinate");
+        return -1;
+      }
+    }
+    // Z
+    else if (strcmp(bank_argument.PC2_message_z_coordinate_field_name.c_str(), 
+                    msg->fields[i].name.c_str()) == 0)
+    {
+      // Read offset
+      memcpy(&tmp_byte4[0], &msg->fields[i].offset, 4);
+      if (must_reverse_bytes)
+      {
+        reverseBytes(tmp_byte4, 4);
+      }
+      memcpy(&PC2_message_z_offset, tmp_byte4, 4);
+      
+      // Read datatype
+      tmp_byte = msg->fields[i].datatype;
+      if (tmp_byte == sensor_msgs::PointField::INT8 || 
+          tmp_byte == sensor_msgs::PointField::UINT8)
+      {
+        PC2_message_z_bytes = 1;
+      }
+      else if (tmp_byte == sensor_msgs::PointField::INT16 || 
+               tmp_byte == sensor_msgs::PointField::UINT16)
+      {
+        PC2_message_z_bytes = 2;
+      }
+      else if (tmp_byte == sensor_msgs::PointField::INT32 || 
+               tmp_byte == sensor_msgs::PointField::UINT32 || 
+               tmp_byte == sensor_msgs::PointField::FLOAT32)
+      {
+        PC2_message_z_bytes = 4;
+      }
+      else if (tmp_byte == sensor_msgs::PointField::FLOAT64)
+      {
+        PC2_message_z_bytes = 8;
+      }
+      else
+      {
+        ROS_ERROR("Cannot determine number of bytes for Z coordinate");
+        return -1;
+      }
+    }
+  }
+  
+  if (0 <= PC2_message_x_offset &&
+      0 <= PC2_message_x_bytes  &&
+      0 <= PC2_message_y_offset &&
+      0 <= PC2_message_y_bytes  &&
+      0 <= PC2_message_z_offset &&
+      0 <= PC2_message_z_bytes)
+  {
+    return 0;
+  }
+  else
+  {
+    ROS_ERROR("Could not determine offsets and bytes");
+    return -1;
+  }
+}
+
 
 /* DATA POINT HANDLING */
 void Bank::readPoint(const byte_t * start_of_point,
@@ -2276,6 +2448,113 @@ unsigned int Bank::putPoints(const sensor_msgs::PointCloud2::ConstPtr msg)
   return added_points_out;
 }
 
+unsigned int Bank::putPoints(const sensor_msgs::PointCloud2 * msg)
+{
+  const bool must_reverse_bytes = (msg->is_bigendian != !machine_is_little_endian);
+  float * bank_put = bank_ranges_ema[bank_index_put];
+  const double bank_view_angle = bank_argument.angle_max - bank_argument.angle_min;
+  const double bank_view_angle_half = bank_view_angle / 2;
+  const double voxel_leaf_size_half = bank_argument.PC2_voxel_leaf_size / 2;
+  const double inverted_bank_resolution = bank_argument.points_per_scan / bank_view_angle;
+  const int bank_index_max = bank_argument.points_per_scan - 1;
+  const unsigned int rows = msg->height;
+  const unsigned int bytes_per_row = msg->row_step;
+  const unsigned int bytes_per_point = msg->point_step;
+  
+  // Loop through rows
+  unsigned int added_points_out = 0;
+  for (unsigned int i=0; i<rows; i++)
+  {
+    // Loop through points in each row
+    const unsigned int row_offset = i * bytes_per_row;
+    for (unsigned int j=0; j<bytes_per_row; j+=bytes_per_point)
+    {
+      double x, y, z;
+      const uint8_t * start_of_point = &msg->data[row_offset + j];
+      
+      readPoint(start_of_point,
+                must_reverse_bytes,
+                &x,
+                &y,
+                &z);
+      
+      // Is this point outside the considered volume?
+      if (!bank_argument.sensor_frame_has_z_axis_forward)
+      {
+        // Assume Z-axis is pointing up and X-axis forward
+        if (z < bank_argument.PC2_threshold_z_min || 
+            bank_argument.PC2_threshold_z_max < z ||
+            x < 0.02) 
+        {
+          continue;
+        }
+      }
+      else
+      {
+        // Assume Y-axis is pointing down and Z-axis forward
+        if (-y < bank_argument.PC2_threshold_z_min || 
+            bank_argument.PC2_threshold_z_max < -y ||
+            z < 0.02) 
+        {
+          continue;
+        }
+      }
+      
+      // Sanity check
+      if (std::isnan(x) || std::isnan(y) || std::isnan(z))
+      {
+        ROS_DEBUG_STREAM("Skipping point (" << x << "," << y << "," << z << ")");
+        continue;
+      }
+      
+      // Another valid point
+      added_points_out = added_points_out + 1;
+      
+      // Calculate index (indices) of point in bank
+      const double range = sqrt(x*x + y*y + z*z); // TODO?
+      double point_angle_min;
+      double point_angle_max;
+      if (!bank_argument.sensor_frame_has_z_axis_forward)
+      {
+        // Assume Z-axis is pointing up, 0.02 <= x
+        point_angle_min = atan((y - voxel_leaf_size_half) / x);
+        point_angle_max = atan((y + voxel_leaf_size_half) / x);
+      }
+      else
+      {
+        // Assume Y-axis is pointing down, 0.02 <= z
+        point_angle_min = atan((-x - voxel_leaf_size_half) / z);
+        point_angle_max = atan((-x + voxel_leaf_size_half) / z);
+      }
+
+      
+      const int bank_index_point_min = 
+        (0 > (point_angle_min + bank_view_angle_half) * inverted_bank_resolution ?
+        0: // MAX of 0 and next row
+        (point_angle_min + bank_view_angle_half) * inverted_bank_resolution);
+      const int bank_index_point_max = 
+        (bank_index_max < (point_angle_max + bank_view_angle_half) * inverted_bank_resolution ?
+        bank_index_max : // MIN of bank_index_max and next row
+        (point_angle_max + bank_view_angle_half) * inverted_bank_resolution);
+            
+      ROS_DEBUG_STREAM("The point (" << x << "," << y << "," << z << ") is added in the bank between indices " << \
+           std::setw(4) << std::left << bank_index_point_min << " and " << bank_index_point_max << std::endl);
+      
+      // Fill all indices covered by this point
+      // Check if there is already a range at the given index, only add if this point is closer
+      for (int p=bank_index_point_min; p<=bank_index_point_max; ++p)
+      {
+        if (range < bank_put[p])
+        {
+          bank_put[p] = range;
+        }
+      }
+    }
+  }
+  
+  return added_points_out;
+}
+
 
 // Assumes that bank[bank_index_put] is filled with ranges from a new message 
 // (i.e. that indices have not yet been updated).
@@ -2333,7 +2612,7 @@ inline void Bank::advanceIndex()
 
 
 // Init bank based on LaserScan msg
-long Bank::init(BankArgument bank_argument, sensor_msgs::LaserScan::ConstPtr msg)
+long Bank::init(BankArgument bank_argument, const sensor_msgs::LaserScan * msg)
 {
   if (!bank_is_initialized)
   {
@@ -2369,7 +2648,7 @@ long Bank::init(BankArgument bank_argument, sensor_msgs::LaserScan::ConstPtr msg
 
 
 // Add FIRST LaserScan message to bank - no ema
-long Bank::addFirstMessage(sensor_msgs::LaserScan::ConstPtr msg)
+long Bank::addFirstMessage(const sensor_msgs::LaserScan * msg)
 {
   bank_stamp[0] = msg->header.stamp.toSec();
   
@@ -2386,7 +2665,8 @@ long Bank::addFirstMessage(sensor_msgs::LaserScan::ConstPtr msg)
       {
         bank_put[i] = bank_argument.range_min - 0.01;
       }
-      else if (msg->ranges[i] != msg->ranges[i])
+//       else if (msg->ranges[i] != msg->ranges[i])
+      else if (std::isnan(msg->ranges[i]))
       {
         // The range is NaN
         bank_put[i] = bank_argument.range_max + 0.01;
@@ -2411,9 +2691,8 @@ long Bank::addFirstMessage(sensor_msgs::LaserScan::ConstPtr msg)
   return 0;
 }
 
-
 // Add LaserScan message and perform EMA
-long Bank::addMessage(sensor_msgs::LaserScan::ConstPtr msg)
+long Bank::addMessage(const sensor_msgs::LaserScan * msg)
 {
   // Save timestamp
   bank_stamp[bank_index_put] = msg->header.stamp.toSec();
@@ -2463,7 +2742,10 @@ long Bank::addMessage(sensor_msgs::LaserScan::ConstPtr msg)
 
 
 // Init bank based on PointCloud2 msg
-long Bank::init(BankArgument bank_argument, sensor_msgs::PointCloud2::ConstPtr msg)
+// This function only works on local copies of the input parameters, so it can safely be called again using the same 
+// parameters if offsets and bytes could not be read from the message
+long Bank::init(BankArgument bank_argument, const sensor_msgs::PointCloud2 * msg, 
+                                            const bool discard_message_if_no_points_added)
 {
   ROS_DEBUG("Init bank (%s)", msg->header.frame_id.c_str());
   bank_argument.sensor_frame = msg->header.frame_id;
@@ -2483,7 +2765,7 @@ long Bank::init(BankArgument bank_argument, sensor_msgs::PointCloud2::ConstPtr m
   
   if (bank_argument.points_per_scan <= 1)
   {
-    bank_argument.angle_increment = 0.0;
+    bank_argument.angle_increment = 0.0000001;
   }
   else
   {
@@ -2504,13 +2786,14 @@ long Bank::init(BankArgument bank_argument, sensor_msgs::PointCloud2::ConstPtr m
   }
   
   bank_argument.check_PC2();
-  initBank(bank_argument);
-  return addFirstMessage(msg);
+  initBank(bank_argument);  // Will return immediately in case it has been called before
+  return addFirstMessage(msg, discard_message_if_no_points_added);
 }
 
 
 // Add FIRST PointCloud2 message to bank - no EMA
-long Bank::addFirstMessage(sensor_msgs::PointCloud2::ConstPtr msg)
+long Bank::addFirstMessage(const sensor_msgs::PointCloud2 * msg, 
+                           const bool discard_message_if_no_points_added)
 {
   // Save timestamp
   bank_stamp[0] = msg->header.stamp.toSec();
@@ -2528,7 +2811,10 @@ long Bank::addFirstMessage(sensor_msgs::PointCloud2::ConstPtr msg)
   if (added_points == 0)
   {
     ROS_WARN("Could not add any points from the PointCloud2 message");
-    return -1;
+    if (discard_message_if_no_points_added)
+    {
+      return -1;
+    }
   }
   
   ROS_DEBUG_STREAM("First message (PointCloud2):" << std::endl << *msg);
@@ -2543,7 +2829,8 @@ long Bank::addFirstMessage(sensor_msgs::PointCloud2::ConstPtr msg)
 }
 
 // Add PointCloud2 message and perform EMA
-long Bank::addMessage(sensor_msgs::PointCloud2::ConstPtr msg)
+long Bank::addMessage(const sensor_msgs::PointCloud2 * msg, 
+                      const bool discard_message_if_no_points_added)
 {
   // Copy timestamp
   bank_stamp[bank_index_put] = msg->header.stamp.toSec();
@@ -2558,7 +2845,10 @@ long Bank::addMessage(sensor_msgs::PointCloud2::ConstPtr msg)
   if (added_points == 0)
   {
     ROS_WARN("Could not add any points from the PointCloud2 message");
-    return -1;
+    if (discard_message_if_no_points_added)
+    {
+      return -1;
+    }
   }
   
   ROS_DEBUG("%s", getStringPutPoints().c_str());

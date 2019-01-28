@@ -10,13 +10,22 @@ project(find_moving_objects)
 find_package(catkin REQUIRED COMPONENTS
   roscpp 
   nodelet
-  tf 
+  tf
 #   topic_tools
   message_generation 
   sensor_msgs 
   visualization_msgs 
   geometry_msgs
 )
+
+# find_package(OpenMP REQUIRED)
+# if(OPENMP_FOUND)
+#   message(STATUS "OPENMP FOUND")
+#   set(OpenMP_FLAGS ${OpenMP_CXX_FLAGS})  # or if you use C: ${OpenMP_C_FLAGS}
+#   set(OpenMP_LIBS gomp)
+# else()
+#   message(STATUS "OPENMP NOT FOUND")
+# endif()
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -61,6 +70,8 @@ add_message_files(
   FILES 
   MovingObject.msg 
   MovingObjectArray.msg 
+  PointCloud2Array.msg
+  LaserScanArray.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -81,6 +92,7 @@ add_message_files(
 generate_messages(
   DEPENDENCIES 
   geometry_msgs 
+  sensor_msgs
 )
 
 ################################################
@@ -123,6 +135,7 @@ catkin_package(
                 visualization_msgs 
                 geometry_msgs 
  DEPENDS Boost
+#          OpenMP
 )
 
 ###########
@@ -153,12 +166,20 @@ add_dependencies(find_moving_objects ${PROJECT_NAME}_generate_messages)
 # add_executable(${PROJECT_NAME}_node src/${PROJECT_NAME}_node.cpp)
 add_executable(laserscan_interpreter_node src/laserscan_interpreter.cpp)
 add_library(LaserScanInterpreterNodelet src/laserscan_interpreter.cpp)
+add_executable(laserscanarray_interpreter_node src/laserscan_interpreter.cpp)
+add_library(LaserScanArrayInterpreterNodelet src/laserscan_interpreter.cpp)
 add_executable(pointcloud2_interpreter_node src/pointcloud2_interpreter.cpp)
 add_library(PointCloud2InterpreterNodelet src/pointcloud2_interpreter.cpp)
+add_executable(pointcloud2array_interpreter_node src/pointcloud2_interpreter.cpp)
+add_library(PointCloud2ArrayInterpreterNodelet src/pointcloud2_interpreter.cpp)
 target_compile_options(laserscan_interpreter_node PRIVATE -DNODE)
 target_compile_options(LaserScanInterpreterNodelet PRIVATE -DNODELET)
+target_compile_options(laserscanarray_interpreter_node PRIVATE -DNODE -DLSARRAY ${OpenMP_FLAGS})
+target_compile_options(LaserScanArrayInterpreterNodelet PRIVATE -DNODELET -DLSARRAY ${OpenMP_FLAGS})
 target_compile_options(pointcloud2_interpreter_node PRIVATE -DNODE)
 target_compile_options(PointCloud2InterpreterNodelet PRIVATE -DNODELET)
+target_compile_options(pointcloud2array_interpreter_node PRIVATE -DNODE -DPC2ARRAY ${OpenMP_FLAGS})
+target_compile_options(PointCloud2ArrayInterpreterNodelet PRIVATE -DNODELET -DPC2ARRAY ${OpenMP_FLAGS})
 add_executable(moving_objects_confidence_enhancer_node src/moving_objects_confidence_enhancer_node.cpp)
 add_executable(example_frame_broadcaster_node src/example_frame_broadcaster_node.cpp)
 add_executable(example_d435_voxel_echoer_node src/example_d435_voxel_echoer_node.cpp)
@@ -185,8 +206,12 @@ add_executable(example_rplidar_echoer_node src/example_rplidar_echoer_node.cpp)
 # add_dependencies(example_rplidar_echoer_node option)
 add_dependencies(laserscan_interpreter_node find_moving_objects)
 add_dependencies(LaserScanInterpreterNodelet find_moving_objects)
+add_dependencies(laserscanarray_interpreter_node find_moving_objects ${catkin_EXPORTED_TARGETS})
+add_dependencies(LaserScanArrayInterpreterNodelet find_moving_objects ${catkin_EXPORTED_TARGETS})
 add_dependencies(pointcloud2_interpreter_node find_moving_objects)
 add_dependencies(PointCloud2InterpreterNodelet find_moving_objects)
+add_dependencies(pointcloud2array_interpreter_node find_moving_objects ${catkin_EXPORTED_TARGETS})
+add_dependencies(PointCloud2ArrayInterpreterNodelet find_moving_objects ${catkin_EXPORTED_TARGETS})
 add_dependencies(moving_objects_confidence_enhancer_node ${PROJECT_NAME}_generate_messages)
 # add_dependencies(moving_objects_confidence_enhancer_node option)
 # add_dependencies(example_frame_broadcaster_node option)
@@ -227,8 +252,18 @@ LaserScanInterpreterNodelet
 )
 
 target_link_libraries(
-PointCloud2InterpreterNodelet
+laserscanarray_interpreter_node
   ${catkin_LIBRARIES}
+  ${OpenMP_LIBS}
+#   option
+  find_moving_objects
+#   hz_calculator
+)
+
+target_link_libraries(
+LaserScanArrayInterpreterNodelet
+  ${catkin_LIBRARIES}
+  ${OpenMP_LIBS}
 #   option
   find_moving_objects
 #   hz_calculator
@@ -237,6 +272,32 @@ PointCloud2InterpreterNodelet
 target_link_libraries(
 pointcloud2_interpreter_node
   ${catkin_LIBRARIES}
+#   option
+  find_moving_objects
+#   hz_calculator
+)
+
+target_link_libraries(
+PointCloud2InterpreterNodelet
+  ${catkin_LIBRARIES}
+#   option
+  find_moving_objects
+#   hz_calculator
+)
+
+target_link_libraries(
+pointcloud2array_interpreter_node
+  ${catkin_LIBRARIES}
+  ${OpenMP_LIBS}
+#   option
+  find_moving_objects
+#   hz_calculator
+)
+
+target_link_libraries(
+PointCloud2ArrayInterpreterNodelet
+  ${catkin_LIBRARIES}
+  ${OpenMP_LIBS}
 #   option
   find_moving_objects
 #   hz_calculator
@@ -298,8 +359,14 @@ install(DIRECTORY launch rviz logger_config
 )
 
 
-install(TARGETS laserscan_interpreter_node pointcloud2_interpreter_node
-                LaserScanInterpreterNodelet PointCloud2InterpreterNodelet
+install(TARGETS laserscan_interpreter_node 
+                laserscanarray_interpreter_node 
+                pointcloud2_interpreter_node
+                pointcloud2array_interpreter_node
+                LaserScanInterpreterNodelet 
+                LaserScanArrayInterpreterNodelet 
+                PointCloud2InterpreterNodelet
+                PointCloud2ArrayInterpreterNodelet
                 moving_objects_confidence_enhancer_node
                 example_d435_voxel_echoer_node
                 example_rplidar_echoer_node

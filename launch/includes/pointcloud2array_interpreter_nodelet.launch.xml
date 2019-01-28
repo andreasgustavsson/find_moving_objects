@@ -1,0 +1,146 @@
+<launch>
+  <arg name="manager"             default="manager"/>
+  <arg name="create_manager"      default="false"/>
+
+  <arg name="subscribe_topic"                                    default="pointcloudArray"/>
+  <arg name="subscribe_buffer_size"                              default="1"/>
+  <arg name="sensor_frame_has_z_axis_forward"                    default="true"/>
+  <arg name="ema_alpha"                                          default="1.0"/>
+  <arg name="map_frame"                                          default="map"/>
+  <arg name="fixed_frame"                                        default="odom"/>
+  <arg name="base_frame"                                         default="base_link"/>
+  <arg name="nr_scans_in_bank"                                   default="0"/>
+  <arg name="optimize_nr_scans_in_bank"                          default="0.5"/>
+  <arg name="bank_view_angle"                                    default="3.141592654"/>
+  <arg name="nr_points_per_scan_in_bank"                         default="360"/>
+  <arg name="publish_objects"                                    default="true"/>
+  <arg name="publish_ema"                                        default="true"/>
+  <arg name="publish_objects_closest_points_markers"             default="true"/>
+  <arg name="publish_objects_velocity_arrows"                    default="true"/>
+  <arg name="publish_objects_delta_position_lines"               default="true"/>
+  <arg name="publish_objects_width_lines"                        default="true"/>
+  <arg name="publish_buffer_size"                                default="1"/>
+  <arg name="topic_objects"                                      default="moving_objects"/>
+  <arg name="topic_ema"                                          default="ema"/>
+  <arg name="topic_objects_closest_points_markers"               default="objects_closest_point_markers"/>
+  <arg name="topic_objects_velocity_arrows"                      default="objects_velocity_arrows"/>
+  <arg name="topic_objects_delta_position_lines"                 default="objects_delta_position_lines"/>
+  <arg name="topic_objects_width_lines"                          default="objects_width_lines"/>
+  <arg name="ns_velocity_arrows"                                 default="velocity_arrows"/>
+  <arg name="ns_delta_position_lines"                            default="delta_position_lines"/>
+  <arg name="ns_width_lines"                                     default="width_lines"/>
+  <arg name="velocity_arrows_use_full_gray_scale"                default="false"/>
+  <arg name="velocity_arrows_use_sensor_frame"                   default="false"/>
+  <arg name="velocity_arrows_use_base_frame"                     default="false"/>
+  <arg name="velocity_arrows_use_fixed_frame"                    default="false"/>
+  <arg name="message_x_coordinate_field_name"                    default="x"/>
+  <arg name="message_y_coordinate_field_name"                    default="y"/>
+  <arg name="message_z_coordinate_field_name"                    default="z"/>
+  <arg name="voxel_leaf_size"                                    default="0.01"/>
+  <arg name="threshold_z_min"                                    default="0.0"/>
+  <arg name="threshold_z_max"                                    default="1.0"/>
+  <arg name="object_threshold_edge_max_delta_range"              default="0.15"/>
+  <arg name="object_threshold_min_nr_points"                     default="3"/>
+  <arg name="object_threshold_max_distance"                      default="6.5"/>
+  <arg name="object_threshold_min_speed"                         default="0.1"/>
+  <arg name="object_threshold_max_delta_width_in_points"         default="15"/>
+  <arg name="object_threshold_bank_tracking_max_delta_distance"  default="0.4"/>
+  <arg name="object_threshold_min_confidence"                    default="0.7"/>
+  <arg name="base_confidence"                                    default="0.3"/>
+
+
+  <node if="$(arg create_manager)"
+        pkg="nodelet"
+        type="nodelet"
+        name="$(arg manager)"
+        args="manager"
+        output="screen"/>
+  <node pkg="nodelet"
+        type="nodelet"
+        name="$(anon pointcloud2array_interpreter)"
+        args="load find_moving_objects/PointCloud2ArrayInterpreterNodelet $(arg manager)"
+        output="screen">
+    <param name="subscribe_topic"        type="str"    value="$(arg subscribe_topic)"/>
+    <param name="subscribe_buffer_size"  type="int"    value="$(arg subscribe_buffer_size)"/>
+
+    <param name="sensor_frame_has_z_axis_forward"  type="bool"   value="$(arg sensor_frame_has_z_axis_forward)"/>
+    <param name="ema_alpha"  type="double" value="$(arg ema_alpha)"/>
+
+    <param name="map_frame"    type="str"    value="$(arg map_frame)"/>
+    <param name="fixed_frame"  type="str"    value="$(arg fixed_frame)"/>
+    <param name="base_frame"   type="str"    value="$(arg base_frame)"/>
+
+    <param name="nr_scans_in_bank"            type="int"    value="$(arg nr_scans_in_bank)"/>
+    <param name="optimize_nr_scans_in_bank"   type="double" value="$(arg optimize_nr_scans_in_bank)"/>
+    <param name="bank_view_angle"             type="double" value="$(arg bank_view_angle)"/>
+    <param name="nr_points_per_scan_in_bank"  type="int"    value="$(arg nr_points_per_scan_in_bank)"/>
+
+    <param name="publish_objects"                                       type="bool"
+                value="$(arg publish_objects)"/>
+    <param name="publish_ema"                                           type="bool"
+                value="$(arg publish_ema)"/>
+    <param name="publish_objects_closest_points_markers"                type="bool"
+                value="$(arg publish_objects_closest_points_markers)"/>
+    <param name="publish_objects_velocity_arrows"                       type="bool"
+                value="$(arg publish_objects_velocity_arrows)"/>
+    <param name="publish_objects_delta_position_lines"                  type="bool"
+                value="$(arg publish_objects_delta_position_lines)"/>
+    <param name="publish_objects_width_lines"                           type="bool"
+                value="$(arg publish_objects_width_lines)"/>
+
+    <param name="publish_buffer_size"  type="int"  value="$(arg publish_buffer_size)"/>
+
+    <param name="topic_objects"                                       type="str"
+                value="$(arg topic_objects)"/>
+    <param name="topic_ema"                                           type="str"
+                value="$(arg topic_ema)"/>
+    <param name="topic_objects_closest_points_markers"                type="str"
+                value="$(arg topic_objects_closest_points_markers)"/>
+    <param name="topic_objects_velocity_arrows"                       type="str"
+                value="$(arg topic_objects_velocity_arrows)"/>
+    <param name="topic_objects_delta_position_lines"                  type="str"
+                value="$(arg topic_objects_delta_position_lines)"/>
+    <param name="topic_objects_width_lines"                           type="str"
+                value="$(arg topic_objects_width_lines)"/>
+
+    <param name="ns_velocity_arrows"                                  type="str"
+                value="$(arg ns_velocity_arrows)"/>
+    <param name="ns_delta_position_lines"                             type="str"
+                value="$(arg ns_delta_position_lines)"/>
+    <param name="ns_width_lines"                                      type="str"
+                value="$(arg ns_width_lines)"/>
+
+    <param name="velocity_arrows_use_full_gray_scale"                 type="bool"
+                value="$(arg velocity_arrows_use_full_gray_scale)"/>
+    <param name="velocity_arrows_use_sensor_frame"                    type="bool"
+                value="$(arg velocity_arrows_use_sensor_frame)"/>
+    <param name="velocity_arrows_use_base_frame"                      type="bool"
+                value="$(arg velocity_arrows_use_base_frame)"/>
+    <param name="velocity_arrows_use_fixed_frame"                     type="bool"
+                value="$(arg velocity_arrows_use_fixed_frame)"/>
+
+    <param name="message_x_coordinate_field_name"  type="str"     value="$(arg message_x_coordinate_field_name)"/>
+    <param name="message_y_coordinate_field_name"  type="str"     value="$(arg message_y_coordinate_field_name)"/>
+    <param name="message_z_coordinate_field_name"  type="str"     value="$(arg message_z_coordinate_field_name)"/>
+    <param name="voxel_leaf_size"                  type="double"  value="$(arg voxel_leaf_size)"/>
+    <param name="threshold_z_min"                  type="double"  value="$(arg threshold_z_min)"/>
+    <param name="threshold_z_max"                  type="double"  value="$(arg threshold_z_max)"/>
+
+    <param name="object_threshold_edge_max_delta_range"                       type="double"
+                value="$(arg object_threshold_edge_max_delta_range)"/>
+    <param name="object_threshold_min_nr_points"                              type="int"
+                value="$(arg object_threshold_min_nr_points)"/>
+    <param name="object_threshold_max_distance"                               type="double"
+           value="$(arg object_threshold_max_distance)"/>
+    <param name="object_threshold_min_speed"                                  type="double"
+           value="$(arg object_threshold_min_speed)"/>
+    <param name="object_threshold_max_delta_width_in_points"                  type="int"
+           value="$(arg object_threshold_max_delta_width_in_points)"/>
+    <param name="object_threshold_bank_tracking_max_delta_distance"           type="double"
+           value="$(arg object_threshold_bank_tracking_max_delta_distance)"/>
+    <param name="object_threshold_min_confidence"                             type="double"
+           value="$(arg object_threshold_min_confidence)"/>
+    <param name="base_confidence"                                             type="double"
+           value="$(arg base_confidence)"/>
+  </node>
+</launch>
