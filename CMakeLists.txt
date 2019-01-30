@@ -67,6 +67,7 @@ endif()
 
 # Generate messages in the 'msg' folder
 add_message_files(
+  DIRECTORY msg
   FILES 
   MovingObject.msg 
   MovingObjectArray.msg 
@@ -152,13 +153,13 @@ include_directories(
 ## Declare a C++ library
 # add_library(option  src/${PROJECT_NAME}/option.cpp)
 # add_library(hz_calculator  src/${PROJECT_NAME}/hz_calculator.cpp)
-add_library(find_moving_objects  src/${PROJECT_NAME}/bank.cpp)
+add_library(${PROJECT_NAME}  src/${PROJECT_NAME}/bank.cpp)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
-add_dependencies(find_moving_objects ${PROJECT_NAME}_generate_messages)
-# add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(find_moving_objects ${PROJECT_NAME}_generate_messages)
+add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context

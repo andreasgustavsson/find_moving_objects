@@ -128,10 +128,10 @@ LaserScanInterpreterNode::LaserScanInterpreterNode()
   ros::Time::waitForValid();
 #endif
   
-#ifndef LSARRAY
-  // Start collecting tf data
-  bank = new find_moving_objects::Bank;
-#endif
+// #ifndef LSARRAY
+//   // Start collecting tf data
+//   bank = new find_moving_objects::Bank;
+// #endif
   
 #ifdef NODE
   onInit();
@@ -164,7 +164,8 @@ LaserScanInterpreterNodelet::~LaserScanInterpreterNodelet()
 LaserScanInterpreterNode::~LaserScanInterpreterNode()
 # endif
 {
-  delete bank;
+  delete banks[0];
+  banks.clear();
 }
 #endif
 
@@ -251,8 +252,12 @@ void LaserScanInterpreterNode::laserScanCallbackFirst(const sensor_msgs::LaserSc
   }
   // Now change callback regardless of init outcome
 #else
+  // Create banks
+  banks.resize(1);
+  banks[0] = new find_moving_objects::Bank(tfListener);
+  
   // Init bank
-  if (bank->init(bank_argument, &(*msg)) != 0)
+  if (banks[0]->init(bank_arguments[0], &(*msg)) != 0)
   {
     // If init fails (should never happen for LaserScan) we do not change callback, but use this one again
     return;
@@ -320,14 +325,14 @@ void LaserScanInterpreterNode::laserScanCallback(const sensor_msgs::LaserScan::C
   }
 #else
   // Can message be added to bank?
-  if (bank->addMessage(&(*msg)) != 0)
+  if (banks[0]->addMessage(&(*msg)) != 0)
   {
     // Adding message failed (should never happen for LaserScan)
     return;
   }
 
   // If so, then find and report objects
-  bank->findAndReportMovingObjects();
+  banks[0]->findAndReportMovingObjects();
 #endif
 }
 
@@ -410,7 +415,7 @@ void LaserScanInterpreterNode::hzCalculationCallback(const sensor_msgs::LaserSca
     
     // Set nr of messages in bank
     const double nr_scans = optimize_nr_scans_in_bank * hz;
-#ifdef LSARRAY
+// #ifdef LSARRAY
     bank_arguments[0].nr_scans_in_bank = nr_scans - ((long) nr_scans) == 0.0 ? nr_scans + 1 : ceil(nr_scans);
     
     // Sanity check
@@ -418,15 +423,15 @@ void LaserScanInterpreterNode::hzCalculationCallback(const sensor_msgs::LaserSca
     {
       bank_arguments[0].nr_scans_in_bank = 2;
     }
-#else
-    bank_argument.nr_scans_in_bank = nr_scans - ((long) nr_scans) == 0.0 ? nr_scans + 1 : ceil(nr_scans);
-    
-    // Sanity check
-    if (bank_argument.nr_scans_in_bank < 2)
-    {
-      bank_argument.nr_scans_in_bank = 2;
-    }
-#endif
+// #else
+//     bank_argument.nr_scans_in_bank = nr_scans - ((long) nr_scans) == 0.0 ? nr_scans + 1 : ceil(nr_scans);
+//     
+//     // Sanity check
+//     if (bank_argument.nr_scans_in_bank < 2)
+//     {
+//       bank_argument.nr_scans_in_bank = 2;
+//     }
+// #endif
     
     root_1 = optimize_nr_scans_in_bank * 0.6;
     root_2 = optimize_nr_scans_in_bank * 1.4;
@@ -434,11 +439,11 @@ void LaserScanInterpreterNode::hzCalculationCallback(const sensor_msgs::LaserSca
 #ifdef NODELET
     NODELET_INFO_STREAM("Topic " << subscribe_topic << " has rate " << hz << "Hz" << 
                         " (based on " << received_messages << " msgs during " << elapsed_time << " seconds)");
-# ifdef LSARRAY
+// # ifdef LSARRAY
     NODELET_INFO_STREAM("Optimized bank size is " << bank_arguments[0].nr_scans_in_bank);
-# else
-    NODELET_INFO_STREAM("Optimized bank size is " << bank_argument.nr_scans_in_bank);
-# endif
+// # else
+//     NODELET_INFO_STREAM("Optimized bank size is " << bank_argument.nr_scans_in_bank);
+// # endif
     
     // Update subscriber with new callback
     ros::NodeHandle nh = getNodeHandle();
@@ -454,11 +459,11 @@ void LaserScanInterpreterNode::hzCalculationCallback(const sensor_msgs::LaserSca
 #ifdef NODE
     ROS_INFO_STREAM("Topic " << subscribe_topic << " has rate " << hz << "Hz" << 
                         " (based on " << received_messages << " msgs during " << elapsed_time << " seconds)");
-# ifdef LSARRAY
+// # ifdef LSARRAY
     ROS_INFO_STREAM("Optimized bank size is " << bank_arguments[0].nr_scans_in_bank);
-# else
-    ROS_INFO_STREAM("Optimized bank size is " << bank_argument.nr_scans_in_bank);
-# endif
+// # else
+//     ROS_INFO_STREAM("Optimized bank size is " << bank_argument.nr_scans_in_bank);
+// # endif
     
     // Update subscriber with new callback
     ros::NodeHandle nh;
@@ -500,9 +505,9 @@ void LaserScanInterpreterNode::onInit()
 #endif
   
   // Init bank_argument with parameters
-#ifdef LSARRAY
+// #ifdef LSARRAY
   BankArgument bank_argument;
-#endif
+// #endif
   nh_priv.param("subscribe_topic", subscribe_topic, default_subscribe_topic);
   nh_priv.param("subscribe_buffer_size", subscribe_buffer_size, default_subscribe_buffer_size);
   nh_priv.param("ema_alpha", bank_argument.ema_alpha, default_ema_alpha);
@@ -538,14 +543,12 @@ void LaserScanInterpreterNode::onInit()
   nh_priv.param("topic_objects_width_lines", bank_argument.topic_objects_width_lines, default_topic_objects_width_lines);
   nh_priv.param("topic_objects", bank_argument.topic_objects, default_topic_objects);
   nh_priv.param("publish_buffer_size", bank_argument.publish_buffer_size, default_publish_buffer_size);
-    
-#ifdef LSARRAY
+  
   // Add this as the first bank_argument
   bank_arguments.push_back(bank_argument);
   
   // Create TF listener
   tfListener = new tf::TransformListener;
-#endif
   
   // Optimize bank size?
   nh_priv.param("optimize_nr_scans_in_bank", optimize_nr_scans_in_bank, default_optimize_nr_scans_in_bank);

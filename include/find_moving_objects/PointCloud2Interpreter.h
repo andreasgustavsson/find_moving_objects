@@ -46,7 +46,6 @@ private:
   double start_time;
   const double max_time = 1.5;
   
-#ifdef PC2ARRAY
   /* BANK AND ARGUMENT */
   std::vector<Bank *> banks;
   std::vector<BankArgument> bank_arguments;
@@ -54,6 +53,7 @@ private:
   /* TF listener */
   tf::TransformListener * tfListener;
   
+#ifdef PC2ARRAY
   /* CALLBACK FOR FIRST MESSAGE */
   void pointCloud2ArrayCallbackFirst(const find_moving_objects::PointCloud2Array::ConstPtr & msg);
   

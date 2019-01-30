@@ -127,10 +127,10 @@ PointCloud2InterpreterNode::PointCloud2InterpreterNode()
   ros::Time::waitForValid();
 #endif
   
-#ifndef PC2ARRAY
-  // Start collecting tf data
-  bank = new find_moving_objects::Bank;
-#endif
+// #ifndef PC2ARRAY
+//   // Start collecting tf data
+//   bank = new find_moving_objects::Bank;
+// #endif
   
 #ifdef NODE
   onInit();
@@ -163,7 +163,8 @@ PointCloud2InterpreterNodelet::~PointCloud2InterpreterNodelet()
 PointCloud2InterpreterNode::~PointCloud2InterpreterNode()
 # endif
 {
-  delete bank;
+  delete banks[0];
+  banks.clear();
 }
 #endif
 
@@ -250,8 +251,12 @@ void PointCloud2InterpreterNode::pointCloud2CallbackFirst(const sensor_msgs::Poi
   }
   // Now change callback regardless of init outcome
 #else
+  // Create banks
+  banks.resize(1);
+  banks[0] = new find_moving_objects::Bank(tfListener);
+  
   // Init bank
-  if (bank->init(bank_argument, &(*msg)) != 0)
+  if (banks[0]->init(bank_arguments[0], &(*msg)) != 0)
   {
     // If init fails we do not change callback, but use this one again
     return;
@@ -319,7 +324,7 @@ void PointCloud2InterpreterNode::pointCloud2Callback(const sensor_msgs::PointClo
   }
 #else
   // Can message be added to bank?
-  if (bank->addMessage(&(*msg)) != 0) // De-reference ConstPtr object and take the resulting address to get a pointer to
+  if (banks[0]->addMessage(&(*msg)) != 0) // De-reference ConstPtr object and take the resulting address to get a pointer to
                                       // a PointCloud2 object
   {
     // Adding message failed
@@ -327,7 +332,7 @@ void PointCloud2InterpreterNode::pointCloud2Callback(const sensor_msgs::PointClo
   }
 
   // If so, then find and report objects
-  bank->findAndReportMovingObjects();
+  banks[0]->findAndReportMovingObjects();
 #endif
 }
 
@@ -410,7 +415,7 @@ void PointCloud2InterpreterNode::hzCalculationCallback(const sensor_msgs::PointC
     
     // Set nr of messages in bank
     const double nr_scans = optimize_nr_scans_in_bank * hz;
-#ifdef PC2ARRAY
+// #ifdef PC2ARRAY
     bank_arguments[0].nr_scans_in_bank = nr_scans - ((long) nr_scans) == 0.0 ? nr_scans + 1 : ceil(nr_scans);
     
     // Sanity check
@@ -418,15 +423,15 @@ void PointCloud2InterpreterNode::hzCalculationCallback(const sensor_msgs::PointC
     {
       bank_arguments[0].nr_scans_in_bank = 2;
     }
-#else
-    bank_argument.nr_scans_in_bank = nr_scans - ((long) nr_scans) == 0.0 ? nr_scans + 1 : ceil(nr_scans);
-    
-    // Sanity check
-    if (bank_argument.nr_scans_in_bank < 2)
-    {
-      bank_argument.nr_scans_in_bank = 2;
-    }
-#endif
+// #else
+//     bank_argument.nr_scans_in_bank = nr_scans - ((long) nr_scans) == 0.0 ? nr_scans + 1 : ceil(nr_scans);
+//     
+//     // Sanity check
+//     if (bank_argument.nr_scans_in_bank < 2)
+//     {
+//       bank_argument.nr_scans_in_bank = 2;
+//     }
+// #endif
     
     root_1 = optimize_nr_scans_in_bank * 0.6;
     root_2 = optimize_nr_scans_in_bank * 1.4;
@@ -434,11 +439,11 @@ void PointCloud2InterpreterNode::hzCalculationCallback(const sensor_msgs::PointC
 #ifdef NODELET
     NODELET_INFO_STREAM("Topic " << subscribe_topic << " has rate " << hz << "Hz" << 
                         " (based on " << received_messages << " msgs during " << elapsed_time << " seconds)");
-# ifdef PC2ARRAY
+// # ifdef PC2ARRAY
     NODELET_INFO_STREAM("Optimized bank size is " << bank_arguments[0].nr_scans_in_bank);
-# else
-    NODELET_INFO_STREAM("Optimized bank size is " << bank_argument.nr_scans_in_bank);
-# endif
+// # else
+//     NODELET_INFO_STREAM("Optimized bank size is " << bank_argument.nr_scans_in_bank);
+// # endif
     
     // Update subscriber with new callback
     ros::NodeHandle nh = getNodeHandle();
@@ -454,11 +459,11 @@ void PointCloud2InterpreterNode::hzCalculationCallback(const sensor_msgs::PointC
 #ifdef NODE
     ROS_INFO_STREAM("Topic " << subscribe_topic << " has rate " << hz << "Hz" << 
                         " (based on " << received_messages << " msgs during " << elapsed_time << " seconds)");
-# ifdef PC2ARRAY
+// # ifdef PC2ARRAY
     ROS_INFO_STREAM("Optimized bank size is " << bank_arguments[0].nr_scans_in_bank);
-# else
-    ROS_INFO_STREAM("Optimized bank size is " << bank_argument.nr_scans_in_bank);
-# endif
+// # else
+//     ROS_INFO_STREAM("Optimized bank size is " << bank_argument.nr_scans_in_bank);
+// # endif
     
     // Update subscriber with new callback
     ros::NodeHandle nh;
@@ -500,9 +505,9 @@ void PointCloud2InterpreterNode::onInit()
 #endif
   
   // Init bank_argument using parameters
-#ifdef PC2ARRAY
+// #ifdef PC2ARRAY
   BankArgument bank_argument;
-#endif
+// #endif
   nh_priv.param("subscribe_topic", subscribe_topic, default_subscribe_topic);
   nh_priv.param("subscribe_buffer_size", subscribe_buffer_size, default_subscribe_buffer_size);
   nh_priv.param("ema_alpha", bank_argument.ema_alpha, default_ema_alpha);
@@ -552,13 +557,13 @@ void PointCloud2InterpreterNode::onInit()
   nh_priv.param("threshold_z_min", bank_argument.PC2_threshold_z_min, default_threshold_z_min);
   nh_priv.param("threshold_z_max", bank_argument.PC2_threshold_z_max, default_threshold_z_max);
   
-#ifdef PC2ARRAY
+// #ifdef PC2ARRAY
   // Add this as the first bank_argument
   bank_arguments.push_back(bank_argument);
   
   // Create TF listener
   tfListener = new tf::TransformListener;
-#endif
+// #endif
   
   // Z threshold sanity check
   if (bank_argument.PC2_threshold_z_max < bank_argument.PC2_threshold_z_min)

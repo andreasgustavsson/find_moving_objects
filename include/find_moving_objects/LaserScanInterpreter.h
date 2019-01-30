@@ -46,7 +46,6 @@ private:
   double start_time;
   const double max_time = 1.5;
   
-#ifdef LSARRAY
   /* BANK AND ARGUMENT */
   std::vector<Bank *> banks;
   std::vector<BankArgument> bank_arguments;
@@ -54,6 +53,7 @@ private:
   /* TF listener */
   tf::TransformListener * tfListener;
   
+#ifdef LSARRAY  
   /* CALLBACK FOR FIRST MESSAGE */
   void laserScanArrayCallbackFirst(const find_moving_objects::LaserScanArray::ConstPtr & msg);
   
@@ -66,10 +66,6 @@ private:
   /* CALLBACK FOR HZ CALCULATION */
   void hzCalculationCallback(const find_moving_objects::LaserScanArray::ConstPtr & msg);
 #else
-  /* BANK AND ARGUMENT */
-  Bank * bank;
-  BankArgument bank_argument;
-
   /* LOCAL MESSAGE POINTER */
   sensor_msgs::LaserScan::ConstPtr msg_old;
 
