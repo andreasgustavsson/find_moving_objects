@@ -44,9 +44,13 @@
 #include <sensor_msgs/PointField.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
-#include <tf/tf.h>
-#include <tf/transform_listener.h>
-#include <geometry_msgs/Vector3.h>
+
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/message_filter.h>
+#include <message_filters/subscriber.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+
+// #include <geometry_msgs/Point.h>
 
 /* C/C++ */
 #include <iostream> 
@@ -62,41 +66,41 @@
 #include <find_moving_objects/bank.h>
 
 
-namespace geometry_msgs
-{
-Vector3 operator*(float f, Vector3 v1)
-{
-  Vector3 v;
-  v.x = f * v1.x;
-  v.y = f * v1.y;
-  v.z = f * v1.z;
-  return v;
-}
-Vector3 operator*(Vector3 v1, float f)
-{
-  return f*v1;
-}
-Vector3 operator/(Vector3 v1, float f)
-{
-  Vector3 v;
-  v.x = v1.x / f;
-  v.y = v1.y / f;
-  v.z = v1.z / f;
-  return v;
-}
-float operator^(Vector3 v1, Vector3 v2)
-{
-  return v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
-}
-Vector3 operator+(Vector3 v1, Vector3 v2)
-{
-  Vector3 v;
-  v.x = v1.x + v2.x;
-  v.y = v1.y + v2.y;
-  v.z = v1.z + v2.z;
-  return v;
-}
-} // namespace geometry_msgs
+// namespace geometry_msgs
+// {
+// Point operator*(float f, Point v1)
+// {
+//   Point v;
+//   v.x = f * v1.x;
+//   v.y = f * v1.y;
+//   v.z = f * v1.z;
+//   return v;
+// }
+// Point operator*(Point v1, float f)
+// {
+//   return f*v1;
+// }
+// Point operator/(Point v1, float f)
+// {
+//   Point v;
+//   v.x = v1.x / f;
+//   v.y = v1.y / f;
+//   v.z = v1.z / f;
+//   return v;
+// }
+// float operator^(Point v1, Point v2)
+// {
+//   return v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
+// }
+// Point operator+(Point v1, Point v2)
+// {
+//   Point v;
+//   v.x = v1.x + v2.x;
+//   v.y = v1.y + v2.y;
+//   v.z = v1.z + v2.z;
+//   return v;
+// }
+// } // namespace geometry_msgs
 
 
 namespace find_moving_objects
@@ -225,23 +229,23 @@ std::ostream& operator<<(std::ostream & os, const BankArgument & ba)
   return os;
 }
 
-Bank::Bank()
-{
-  bank_is_initialized = false;
-  bank_is_filled = false;
-  
-  /* Check endianness in case of PointCloud2 */
-  volatile uint32_t dummy = 0x01234567; // If little endian, then 0x67 is the value at the lowest memory address
-  machine_is_little_endian = (*((uint8_t*)(&dummy))) == 0x67;
-  
-  /* Create handle to this node */
-  node = new ros::NodeHandle;
-  
-  /* Create TF listener */
-  tfListener = new tf::TransformListener;
-}
+// Bank::Bank()
+// {
+//   bank_is_initialized = false;
+//   bank_is_filled = false;
+//   
+//   /* Check endianness in case of PointCloud2 */
+//   volatile uint32_t dummy = 0x01234567; // If little endian, then 0x67 is the value at the lowest memory address
+//   machine_is_little_endian = (*((uint8_t*)(&dummy))) == 0x67;
+//   
+//   /* Create handle to this node */
+//   node = new ros::NodeHandle;
+//   
+//   /* Create TF listener */
+//   tf_listener = new tf::TransformListener;
+// }
 
-Bank::Bank(tf::TransformListener * listener)
+Bank::Bank(tf2_ros::Buffer * buffer)
 {
   bank_is_initialized = false;
   bank_is_filled = false;
@@ -253,8 +257,9 @@ Bank::Bank(tf::TransformListener * listener)
   /* Create handle to this node */
   node = new ros::NodeHandle;
   
-  /* Assign TF listener */
-  tfListener = listener;
+  /* Assign TF listener and buffer */
+//   tf_listener = listener;
+  tf_buffer = buffer;
 }
 
 /*
@@ -430,7 +435,7 @@ void Bank::initBank(BankArgument bank_argument)
                                                      bank_argument.publish_buffer_size);
   pub_objects = 
     node->advertise<MovingObjectArray>(bank_argument.topic_objects, 
-                                                            bank_argument.publish_buffer_size);
+                                       bank_argument.publish_buffer_size);
   
   /* Init bank */
   this->bank_argument = bank_argument;
@@ -936,6 +941,10 @@ void Bank::findAndReportMovingObjects()
   const float range_min = bank_argument.range_min;
   unsigned int i=0;
   
+  // Stamps
+  ros::Time old_time = ros::Time(bank_stamp[bank_index_put]);
+  ros::Time new_time = ros::Time(bank_stamp[bank_index_newest]);
+  
   // Handle 360 degrees sensors!
   unsigned int upper_limit_out_of_bounds_scan_point = bank_argument.points_per_scan;
   while(i<upper_limit_out_of_bounds_scan_point)
@@ -1111,11 +1120,11 @@ void Bank::findAndReportMovingObjects()
         mo.base_frame = bank_argument.base_frame;
         mo.header.frame_id = bank_argument.sensor_frame;
         mo.header.seq = nr_objects_found;
-        mo.header.stamp = ros::Time(bank_stamp[bank_index_newest]);
+        mo.header.stamp = new_time; // ros::Time(bank_stamp[bank_index_newest]);
         mo.seen_width = object_seen_width;
         mo.angle_begin = index_min * bank_argument.angle_increment + bank_argument.angle_min;
         mo.angle_end   = index_max * bank_argument.angle_increment + bank_argument.angle_min;
-        const float angle_mean = index_mean * bank_argument.angle_increment + bank_argument.angle_min;
+        const double angle_mean = index_mean * bank_argument.angle_increment + bank_argument.angle_min;
         mo.distance_at_angle_begin = range_at_angle_begin;
         mo.distance_at_angle_end   = range_at_angle_end;
         // Position is dependent on the distance and angle_mean
@@ -1168,22 +1177,22 @@ void Bank::findAndReportMovingObjects()
                                                   bank_argument.points_per_scan - (index_min_old - index_max_old) + 1;
         const float distance_old = range_sum_old / nr_object_points_old;
         // distance is found at index_mean_old, this is the angle at which distance is found
-        const float distance_angle_old = index_mean_old * bank_argument.angle_increment + bank_argument.angle_min;
+        const double distance_angle_old = index_mean_old * bank_argument.angle_increment + bank_argument.angle_min;
         // Covered angle
-        const float covered_angle_old = nr_object_points_old * bank_argument.angle_increment;
+        const double covered_angle_old = nr_object_points_old * bank_argument.angle_increment;
         // Width of old object
-        const float object_seen_width_old = sqrt( range_at_min_index_old * 
-                                                  range_at_min_index_old + 
-                                                  range_at_max_index_old * 
-                                                  range_at_max_index_old - 
-                                                  2 * range_at_min_index_old * 
-                                                      range_at_max_index_old * 
-                                                      cosf (covered_angle_old)
-                                                ); // This is the seen object width using the law of cosine
+        const double object_seen_width_old = sqrt( range_at_min_index_old * 
+                                                   range_at_min_index_old + 
+                                                   range_at_max_index_old * 
+                                                   range_at_max_index_old - 
+                                                   2 * range_at_min_index_old * 
+                                                       range_at_max_index_old * 
+                                                       cosf (covered_angle_old)
+                                                 ); // This is the seen object width using the law of cosine
         // Coordinates at old time
-        float x_old;
-        float y_old;
-        float z_old;
+        double x_old;
+        double y_old;
+        double z_old;
         
         if (bank_argument.sensor_frame_has_z_axis_forward)
         {
@@ -1204,305 +1213,426 @@ void Bank::findAndReportMovingObjects()
         mo_old_positions.position.z = z_old;
         
         // Lookup transformation from old position of sensor_frame to new location of sensor_frame
-        bool transform_old_time_map_frame_success = true;
-        bool transform_new_time_map_frame_success = true;
-        tf::StampedTransform transform_map_frame_old_time;
-        tf::StampedTransform transform_map_frame_new_time;
-        bool transform_old_time_fixed_frame_success = true;
-        bool transform_new_time_fixed_frame_success = true;
-        tf::StampedTransform transform_fixed_frame_old_time;
-        tf::StampedTransform transform_fixed_frame_new_time;
-        bool transform_old_time_base_frame_success = true;
-        bool transform_new_time_base_frame_success = true;
-        tf::StampedTransform transform_base_frame_old_time;
-        tf::StampedTransform transform_base_frame_new_time;
+//         bool transform_old_time_map_frame_success = false;
+//         bool transform_new_time_map_frame_success = false;
+// //         tf::StampedTransform transform_map_frame_old_time;
+// //         tf::StampedTransform transform_map_frame_new_time;
+//         geometry_msgs::TransformStamped transform_map_frame_old_time;
+//         geometry_msgs::TransformStamped transform_map_frame_new_time;
+//         bool transform_old_time_fixed_frame_success = false;
+//         bool transform_new_time_fixed_frame_success = false;
+// //         tf::StampedTransform transform_fixed_frame_old_time;
+// //         tf::StampedTransform transform_fixed_frame_new_time;
+//         geometry_msgs::TransformStamped transform_fixed_frame_old_time;
+//         geometry_msgs::TransformStamped transform_fixed_frame_new_time;
+//         bool transform_old_time_base_frame_success = false;
+//         bool transform_new_time_base_frame_success = false;
+// //         tf::StampedTransform transform_base_frame_old_time;
+// //         tf::StampedTransform transform_base_frame_new_time;
+//         geometry_msgs::TransformStamped transform_base_frame_old_time;
+//         geometry_msgs::TransformStamped transform_base_frame_new_time;
         
-        // Map frame
-        // OLD time
-        try
+//         // Map frame
+//         // OLD time
+//         try
+//         {
+// //           const bool transform_available = 
+// //           tf_listener->waitForTransform(bank_argument.map_frame,  // Target
+// //                                        bank_argument.sensor_frame, // Source
+// //                                        ros::Time(bank_stamp[bank_index_put]), 
+// //                                        ros::Duration(1.0)); // Timeout
+// //           if (transform_available)
+// //           {
+// //             tf_listener->lookupTransform(bank_argument.map_frame, 
+// //                                         bank_argument.sensor_frame, 
+// //                                         ros::Time(bank_stamp[bank_index_put]),
+// //                                         transform_map_frame_old_time); // Resulting transform
+//           transform_map_frame_old_time = tf_buffer->lookupTransform(bank_argument.map_frame, 
+//                                                                    bank_argument.sensor_frame, 
+//                                                                    ros::Time(bank_stamp[bank_index_put]));
+//           transform_old_time_map_frame_success = true;
+// //           }
+//             
+// //           else
+// //           {
+// //             ROS_ERROR("Cannot determine transform from %s to %s at old time %f.", bank_argument.sensor_frame.c_str(), \
+// //                       bank_argument.map_frame.c_str(), bank_stamp[bank_index_put]);
+// //           }
+//           
+//         }
+//         catch (tf2::TransformException ex)
+//         {
+//           ROS_ERROR("Cannot determine transform from %s to %s at old time %f.\n%s",
+//                     bank_argument.sensor_frame.c_str(), 
+//                     bank_argument.map_frame.c_str(), 
+//                     bank_stamp[bank_index_put], 
+//                     ex.what());
+// //           ROS_ERROR("%s", ex.what());
+// //           transform_old_time_map_frame_success = false;
+//         }
+//         
+//         // NEW time
+//         try
+//         {
+//           const bool transform_available = 
+//           tf_listener->waitForTransform(bank_argument.map_frame,  // Target
+//                                        bank_argument.sensor_frame, // Source
+//                                        ros::Time(bank_stamp[bank_index_newest]), 
+//                                        ros::Duration(1.0)); // Timeout
+//           if (transform_available)
+//           {
+//             tf_listener->lookupTransform(bank_argument.map_frame, 
+//                                         bank_argument.sensor_frame, 
+//                                         ros::Time(bank_stamp[bank_index_newest]),
+//                                         transform_map_frame_new_time); // Resulting transform
+//           }
+//           else
+//           {
+//             ROS_ERROR("Cannot determine transform from %s to %s at new time %f.", bank_argument.sensor_frame.c_str(), \
+//                       bank_argument.map_frame.c_str(), bank_stamp[bank_index_newest]);
+//           }
+//         }
+//         catch (tf::TransformException ex)
+//         {
+//           ROS_ERROR("%s", ex.what());
+//           transform_new_time_map_frame_success = false;
+//         }
+//         
+//         // Fixed frame
+//         // OLD time
+//         try
+//         {
+//           const bool transform_available = 
+//           tf_listener->waitForTransform(bank_argument.fixed_frame,  // Target
+//                                        bank_argument.sensor_frame, // Source
+//                                        ros::Time(bank_stamp[bank_index_put]), 
+//                                        ros::Duration(1.0)); // Timeout
+//           if (transform_available)
+//           {
+//             tf_listener->lookupTransform(bank_argument.fixed_frame, 
+//                                         bank_argument.sensor_frame, 
+//                                         ros::Time(bank_stamp[bank_index_put]),
+//                                         transform_fixed_frame_old_time); // Resulting transform
+//           }
+//           else
+//           {
+//             ROS_ERROR("Cannot determine transform from %s to %s at old time %f.", bank_argument.sensor_frame.c_str(), \
+//                       bank_argument.fixed_frame.c_str(), bank_stamp[bank_index_put]);
+//           }
+//         }
+//         catch (tf::TransformException ex)
+//         {
+//           ROS_ERROR("%s", ex.what());
+//           transform_old_time_fixed_frame_success = false;
+//         }
+//         
+//         // NEW time
+//         try
+//         {
+//           const bool transform_available = 
+//           tf_listener->waitForTransform(bank_argument.fixed_frame,  // Target
+//                                        bank_argument.sensor_frame, // Source
+//                                        ros::Time(bank_stamp[bank_index_newest]), 
+//                                        ros::Duration(1.0)); // Timeout
+//           if (transform_available)
+//           {
+//             tf_listener->lookupTransform(bank_argument.fixed_frame, 
+//                                         bank_argument.sensor_frame, 
+//                                         ros::Time(bank_stamp[bank_index_newest]),
+//                                         transform_fixed_frame_new_time); // Resulting transform
+//           }
+//           else
+//           {
+//             ROS_ERROR("Cannot determine transform from %s to %s at new time %f.", bank_argument.sensor_frame.c_str(), \
+//                       bank_argument.fixed_frame.c_str(), bank_stamp[bank_index_newest]);
+//           }
+//         }
+//         catch (tf::TransformException ex)
+//         {
+//           ROS_ERROR("%s", ex.what());
+//           transform_new_time_fixed_frame_success = false;
+//         }
+//         
+//         // Base frame
+//         // OLD time
+//         try
+//         {
+//           const bool transform_available = 
+//           tf_listener->waitForTransform(bank_argument.base_frame,  // Target
+//                                        bank_argument.sensor_frame, // Source
+//                                        ros::Time(bank_stamp[bank_index_put]), 
+//                                        ros::Duration(1.0)); // Timeout
+//           if (transform_available)
+//           {
+//             tf_listener->lookupTransform(bank_argument.base_frame, 
+//                                         bank_argument.sensor_frame, 
+//                                         ros::Time(bank_stamp[bank_index_put]),
+//                                         transform_base_frame_old_time); // Resulting transform
+//           }
+//           else
+//           {
+//             ROS_ERROR("Cannot determine transform from %s to %s at old time %f.", bank_argument.sensor_frame.c_str(), \
+//                       bank_argument.base_frame.c_str(), bank_stamp[bank_index_put]);
+//           }
+//         }
+//         catch (tf::TransformException ex)
+//         {
+//           ROS_ERROR("%s", ex.what());
+//           transform_old_time_base_frame_success = false;
+//         }
+//         
+//         // NEW time
+//         try
+//         {
+//           const bool transform_available = 
+//           tf_listener->waitForTransform(bank_argument.base_frame,  // Target
+//                                        bank_argument.sensor_frame, // Source
+//                                        ros::Time(bank_stamp[bank_index_newest]), 
+//                                        ros::Duration(1.0)); // Timeout
+//           if (transform_available)
+//           {
+//             tf_listener->lookupTransform(bank_argument.base_frame, 
+//                                         bank_argument.sensor_frame, 
+//                                         ros::Time(bank_stamp[bank_index_newest]),
+//                                         transform_base_frame_new_time); // Resulting transform
+//           }
+//           else
+//           {
+//             ROS_ERROR("Cannot determine transform from %s to %s at new time %f.", bank_argument.sensor_frame.c_str(), 
+//                       bank_argument.base_frame.c_str(), bank_stamp[bank_index_newest]);
+//           }
+//         }
+//         catch (tf::TransformException ex)
+//         {
+//           ROS_ERROR("%s", ex.what());
+//           transform_new_time_base_frame_success = false;
+//         }
+//         
+//         // Coordinates translated
+//         tf::Stamped<tf::Point> old_point(tf::Point(x_old, y_old, z_old), 
+//                                          ros::Time(bank_stamp[bank_index_put]), 
+//                                          bank_argument.sensor_frame);
+//         tf::Stamped<tf::Point> new_point(tf::Point(mo.position.x, mo.position.y, mo.position.z), 
+//                                          ros::Time(bank_stamp[bank_index_newest]), 
+//                                          bank_argument.sensor_frame);
+//         tf::Stamped<tf::Point> closest_point(tf::Point(mo.closest_point.x, mo.closest_point.y, mo.closest_point.z), 
+//                                              ros::Time(bank_stamp[bank_index_newest]), 
+//                                              bank_argument.sensor_frame);
+//         
+//         tf::Point old_point_in_map_frame;
+//         tf::Point new_point_in_map_frame;
+//         tf::Point closest_point_in_map_frame;
+//         
+//         tf::Point old_point_in_fixed_frame;
+//         tf::Point new_point_in_fixed_frame;
+//         tf::Point closest_point_in_fixed_frame;
+//         
+//         tf::Point old_point_in_base_frame;
+//         tf::Point new_point_in_base_frame;
+//         tf::Point closest_point_in_base_frame;
+//         
+//         if (transform_old_time_map_frame_success && transform_new_time_map_frame_success)
+//         {
+//           old_point_in_map_frame = transform_map_frame_old_time * old_point;
+//           new_point_in_map_frame = transform_map_frame_new_time * new_point;
+//           closest_point_in_map_frame = transform_map_frame_new_time * closest_point;
+//         }
+//         else
+//         {
+//           old_point_in_map_frame = old_point;
+//           new_point_in_map_frame = new_point;
+//           closest_point_in_map_frame = closest_point;
+//         }
+//         
+//         if (transform_old_time_fixed_frame_success && transform_new_time_fixed_frame_success)
+//         {
+//           old_point_in_fixed_frame = transform_fixed_frame_old_time * old_point;
+//           new_point_in_fixed_frame = transform_fixed_frame_new_time * new_point;
+//           closest_point_in_fixed_frame = transform_fixed_frame_new_time * closest_point;
+//         }
+//         else
+//         {
+//           old_point_in_fixed_frame = old_point;
+//           new_point_in_fixed_frame = new_point;
+//           closest_point_in_fixed_frame = closest_point;
+//         }
+//         
+//         if (transform_old_time_base_frame_success && transform_new_time_base_frame_success)
+//         {
+//           old_point_in_base_frame = transform_base_frame_old_time * old_point;
+//           new_point_in_base_frame = transform_base_frame_new_time * new_point;
+//           closest_point_in_base_frame = transform_base_frame_new_time * closest_point;
+//         }
+//         else
+//         {
+//           old_point_in_base_frame = old_point;
+//           new_point_in_base_frame = new_point;
+//           closest_point_in_base_frame = closest_point;
+//         }
+        
+        geometry_msgs::PointStamped in;
+        geometry_msgs::PointStamped out;
+        
+        // Transform old point into map, fixed and base frames at old_time
+        in.header.frame_id = bank_argument.sensor_frame;
+        in.header.stamp = old_time;
+        in.point = mo_old_positions.position;
+        
+        try {
+          tf_buffer->transform(in, // mo_old_positions.position, 
+                              out, // mo_old_positions.position_in_map_frame, 
+                              bank_argument.map_frame, 
+                              old_time,
+                              bank_argument.fixed_frame);
+          mo_old_positions.position_in_map_frame = out.point;
+          
+          
+          tf_buffer->transform(in, // mo_old_positions.position, 
+                              out, // mo_old_positions.position_in_fixed_frame, 
+                              bank_argument.fixed_frame, 
+                              old_time,
+                              bank_argument.fixed_frame);
+          mo_old_positions.position_in_fixed_frame = out.point;
+          
+          tf_buffer->transform(in, // mo_old_positions.position, 
+                              out, // mo_old_positions.position_in_base_frame, 
+                              bank_argument.base_frame, 
+                              old_time,
+                              bank_argument.fixed_frame);
+          mo_old_positions.position_in_base_frame = out.point;
+          
+          // Transform new point into map, fixed and base frames at new_time
+          in.header.stamp = new_time;
+          in.point = mo.position;
+          
+          tf_buffer->transform(in, // mo.position, 
+                              out, // mo.position_in_map_frame, 
+                              bank_argument.map_frame, 
+                              new_time,
+                              bank_argument.fixed_frame);
+          mo.position_in_map_frame = out.point;
+          
+          tf_buffer->transform(in, // mo.position, 
+                              out, // mo.position_in_fixed_frame, 
+                              bank_argument.fixed_frame, 
+                              new_time,
+                              bank_argument.fixed_frame);
+          mo.position_in_fixed_frame = out.point;
+          
+          tf_buffer->transform(in, // mo.position, 
+                              out, // mo.position_in_base_frame, 
+                              bank_argument.base_frame, 
+                              new_time,
+                              bank_argument.fixed_frame);
+          mo.position_in_base_frame = out.point;
+          
+          // Transform closest point into map, fixed and base frames at new_time
+          in.point = mo.closest_point;
+          
+          tf_buffer->transform(in, // mo.closest_point, 
+                              out, // mo.closest_point_in_map_frame, 
+                              bank_argument.map_frame, 
+                              new_time,
+                              bank_argument.fixed_frame);
+          mo.closest_point_in_map_frame = out.point;
+          
+          tf_buffer->transform(in, // mo.closest_point, 
+                              out, // mo.closest_point_in_fixed_frame, 
+                              bank_argument.fixed_frame, 
+                              new_time,
+                              bank_argument.fixed_frame);
+          mo.closest_point_in_fixed_frame = out.point;
+          
+          tf_buffer->transform(in, // mo.closest_point, 
+                              out, // mo.closest_point_in_base_frame, 
+                              bank_argument.base_frame, 
+                              new_time,
+                              bank_argument.fixed_frame);
+          mo.closest_point_in_base_frame = out.point;
+        } 
+        catch (tf2::TransformException e)
         {
-          const bool transform_available = 
-          tfListener->waitForTransform(bank_argument.map_frame,  // Target
-                                       bank_argument.sensor_frame, // Source
-                                       ros::Time(bank_stamp[bank_index_put]), 
-                                       ros::Duration(1.0)); // Timeout
-          if (transform_available)
-          {
-            tfListener->lookupTransform(bank_argument.map_frame, 
-                                        bank_argument.sensor_frame, 
-                                        ros::Time(bank_stamp[bank_index_put]),
-                                        transform_map_frame_old_time); // Resulting transform
-          }
-          else
-          {
-            ROS_ERROR("Cannot determine transform from %s to %s at old time %f.", bank_argument.sensor_frame.c_str(), \
-                      bank_argument.map_frame.c_str(), bank_stamp[bank_index_put]);
-          }
+          ROS_ERROR_STREAM("Caught some exception: " << e.what());
         }
-        catch (tf::TransformException ex)
-        {
-          ROS_ERROR("%s", ex.what());
-          transform_old_time_map_frame_success = false;
-        }
-        
-        // NEW time
-        try
-        {
-          const bool transform_available = 
-          tfListener->waitForTransform(bank_argument.map_frame,  // Target
-                                       bank_argument.sensor_frame, // Source
-                                       ros::Time(bank_stamp[bank_index_newest]), 
-                                       ros::Duration(1.0)); // Timeout
-          if (transform_available)
-          {
-            tfListener->lookupTransform(bank_argument.map_frame, 
-                                        bank_argument.sensor_frame, 
-                                        ros::Time(bank_stamp[bank_index_newest]),
-                                        transform_map_frame_new_time); // Resulting transform
-          }
-          else
-          {
-            ROS_ERROR("Cannot determine transform from %s to %s at new time %f.", bank_argument.sensor_frame.c_str(), \
-                      bank_argument.map_frame.c_str(), bank_stamp[bank_index_newest]);
-          }
-        }
-        catch (tf::TransformException ex)
-        {
-          ROS_ERROR("%s", ex.what());
-          transform_new_time_map_frame_success = false;
-        }
-        
-        // Fixed frame
-        // OLD time
-        try
-        {
-          const bool transform_available = 
-          tfListener->waitForTransform(bank_argument.fixed_frame,  // Target
-                                       bank_argument.sensor_frame, // Source
-                                       ros::Time(bank_stamp[bank_index_put]), 
-                                       ros::Duration(1.0)); // Timeout
-          if (transform_available)
-          {
-            tfListener->lookupTransform(bank_argument.fixed_frame, 
-                                        bank_argument.sensor_frame, 
-                                        ros::Time(bank_stamp[bank_index_put]),
-                                        transform_fixed_frame_old_time); // Resulting transform
-          }
-          else
-          {
-            ROS_ERROR("Cannot determine transform from %s to %s at old time %f.", bank_argument.sensor_frame.c_str(), \
-                      bank_argument.fixed_frame.c_str(), bank_stamp[bank_index_put]);
-          }
-        }
-        catch (tf::TransformException ex)
-        {
-          ROS_ERROR("%s", ex.what());
-          transform_old_time_fixed_frame_success = false;
-        }
-        
-        // NEW time
-        try
-        {
-          const bool transform_available = 
-          tfListener->waitForTransform(bank_argument.fixed_frame,  // Target
-                                       bank_argument.sensor_frame, // Source
-                                       ros::Time(bank_stamp[bank_index_newest]), 
-                                       ros::Duration(1.0)); // Timeout
-          if (transform_available)
-          {
-            tfListener->lookupTransform(bank_argument.fixed_frame, 
-                                        bank_argument.sensor_frame, 
-                                        ros::Time(bank_stamp[bank_index_newest]),
-                                        transform_fixed_frame_new_time); // Resulting transform
-          }
-          else
-          {
-            ROS_ERROR("Cannot determine transform from %s to %s at new time %f.", bank_argument.sensor_frame.c_str(), \
-                      bank_argument.fixed_frame.c_str(), bank_stamp[bank_index_newest]);
-          }
-        }
-        catch (tf::TransformException ex)
-        {
-          ROS_ERROR("%s", ex.what());
-          transform_new_time_fixed_frame_success = false;
-        }
-        
-        // Base frame
-        // OLD time
-        try
-        {
-          const bool transform_available = 
-          tfListener->waitForTransform(bank_argument.base_frame,  // Target
-                                       bank_argument.sensor_frame, // Source
-                                       ros::Time(bank_stamp[bank_index_put]), 
-                                       ros::Duration(1.0)); // Timeout
-          if (transform_available)
-          {
-            tfListener->lookupTransform(bank_argument.base_frame, 
-                                        bank_argument.sensor_frame, 
-                                        ros::Time(bank_stamp[bank_index_put]),
-                                        transform_base_frame_old_time); // Resulting transform
-          }
-          else
-          {
-            ROS_ERROR("Cannot determine transform from %s to %s at old time %f.", bank_argument.sensor_frame.c_str(), \
-                      bank_argument.base_frame.c_str(), bank_stamp[bank_index_put]);
-          }
-        }
-        catch (tf::TransformException ex)
-        {
-          ROS_ERROR("%s", ex.what());
-          transform_old_time_base_frame_success = false;
-        }
-        
-        // NEW time
-        try
-        {
-          const bool transform_available = 
-          tfListener->waitForTransform(bank_argument.base_frame,  // Target
-                                       bank_argument.sensor_frame, // Source
-                                       ros::Time(bank_stamp[bank_index_newest]), 
-                                       ros::Duration(1.0)); // Timeout
-          if (transform_available)
-          {
-            tfListener->lookupTransform(bank_argument.base_frame, 
-                                        bank_argument.sensor_frame, 
-                                        ros::Time(bank_stamp[bank_index_newest]),
-                                        transform_base_frame_new_time); // Resulting transform
-          }
-          else
-          {
-            ROS_ERROR("Cannot determine transform from %s to %s at new time %f.", bank_argument.sensor_frame.c_str(), 
-                      bank_argument.base_frame.c_str(), bank_stamp[bank_index_newest]);
-          }
-        }
-        catch (tf::TransformException ex)
-        {
-          ROS_ERROR("%s", ex.what());
-          transform_new_time_base_frame_success = false;
-        }
-        
-        // Coordinates translated
-        tf::Stamped<tf::Point> old_point(tf::Point(x_old, y_old, z_old), 
-                                         ros::Time(bank_stamp[bank_index_put]), 
-                                         bank_argument.sensor_frame);
-        tf::Stamped<tf::Point> new_point(tf::Point(mo.position.x, mo.position.y, mo.position.z), 
-                                         ros::Time(bank_stamp[bank_index_newest]), 
-                                         bank_argument.sensor_frame);
-        tf::Stamped<tf::Point> closest_point(tf::Point(mo.closest_point.x, mo.closest_point.y, mo.closest_point.z), 
-                                             ros::Time(bank_stamp[bank_index_newest]), 
-                                             bank_argument.sensor_frame);
-        tf::Point old_point_in_map_frame;
-        tf::Point new_point_in_map_frame;
-        tf::Point closest_point_in_map_frame;
-        tf::Point old_point_in_fixed_frame;
-        tf::Point new_point_in_fixed_frame;
-        tf::Point closest_point_in_fixed_frame;
-        tf::Point old_point_in_base_frame;
-        tf::Point new_point_in_base_frame;
-        tf::Point closest_point_in_base_frame;
-        
-        if (transform_old_time_map_frame_success && transform_new_time_map_frame_success)
-        {
-          old_point_in_map_frame = transform_map_frame_old_time * old_point;
-          new_point_in_map_frame = transform_map_frame_new_time * new_point;
-          closest_point_in_map_frame = transform_map_frame_new_time * closest_point;
-        }
-        else
-        {
-          old_point_in_map_frame = old_point;
-          new_point_in_map_frame = new_point;
-          closest_point_in_map_frame = closest_point;
-        }
-        
-        if (transform_old_time_fixed_frame_success && transform_new_time_fixed_frame_success)
-        {
-          old_point_in_fixed_frame = transform_fixed_frame_old_time * old_point;
-          new_point_in_fixed_frame = transform_fixed_frame_new_time * new_point;
-          closest_point_in_fixed_frame = transform_fixed_frame_new_time * closest_point;
-        }
-        else
-        {
-          old_point_in_fixed_frame = old_point;
-          new_point_in_fixed_frame = new_point;
-          closest_point_in_fixed_frame = closest_point;
-        }
-        
-        if (transform_old_time_base_frame_success && transform_new_time_base_frame_success)
-        {
-          old_point_in_base_frame = transform_base_frame_old_time * old_point;
-          new_point_in_base_frame = transform_base_frame_new_time * new_point;
-          closest_point_in_base_frame = transform_base_frame_new_time * closest_point;
-        }
-        else
-        {
-          old_point_in_base_frame = old_point;
-          new_point_in_base_frame = new_point;
-          closest_point_in_base_frame = closest_point;
-        }
-        
-        // Set old position in map_frame
-        mo_old_positions.position_in_map_frame.x = old_point_in_map_frame.x();
-        mo_old_positions.position_in_map_frame.y = old_point_in_map_frame.y();
-        mo_old_positions.position_in_map_frame.z = old_point_in_map_frame.z();
-        
-        // Set old position in fixed_frame
-        mo_old_positions.position_in_fixed_frame.x = old_point_in_fixed_frame.x();
-        mo_old_positions.position_in_fixed_frame.y = old_point_in_fixed_frame.y();
-        mo_old_positions.position_in_fixed_frame.z = old_point_in_fixed_frame.z();
-        
-        // Set old position in base_frame
-        mo_old_positions.position_in_base_frame.x = old_point_in_base_frame.x();
-        mo_old_positions.position_in_base_frame.y = old_point_in_base_frame.y();
-        mo_old_positions.position_in_base_frame.z = old_point_in_base_frame.z();
-        
-        // Set position in map_frame
-        mo.position_in_map_frame.x = new_point_in_map_frame.x();
-        mo.position_in_map_frame.y = new_point_in_map_frame.y();
-        mo.position_in_map_frame.z = new_point_in_map_frame.z();
-        
-        // Set position in fixed_frame
-        mo.position_in_fixed_frame.x = new_point_in_fixed_frame.x();
-        mo.position_in_fixed_frame.y = new_point_in_fixed_frame.y();
-        mo.position_in_fixed_frame.z = new_point_in_fixed_frame.z();
-        
-        // Set position in base_frame
-        mo.position_in_base_frame.x = new_point_in_base_frame.x();
-        mo.position_in_base_frame.y = new_point_in_base_frame.y();
-        mo.position_in_base_frame.z = new_point_in_base_frame.z();
-        
-        // Set closest point in map_frame
-        mo.closest_point_in_map_frame.x = closest_point_in_map_frame.x();
-        mo.closest_point_in_map_frame.y = closest_point_in_map_frame.y();
-        mo.closest_point_in_map_frame.z = closest_point_in_map_frame.z();
-        
-        // Set closest point in fixed_frame
-        mo.closest_point_in_fixed_frame.x = closest_point_in_fixed_frame.x();
-        mo.closest_point_in_fixed_frame.y = closest_point_in_fixed_frame.y();
-        mo.closest_point_in_fixed_frame.z = closest_point_in_fixed_frame.z();
-        
-        // Set closest point in base_frame
-        mo.closest_point_in_base_frame.x = closest_point_in_base_frame.x();
-        mo.closest_point_in_base_frame.y = closest_point_in_base_frame.y();
-        mo.closest_point_in_base_frame.z = closest_point_in_base_frame.z();
         
         // Check how object has moved
-        const float dx_map =   new_point_in_map_frame.x() -   old_point_in_map_frame.x();
-        const float dy_map =   new_point_in_map_frame.y() -   old_point_in_map_frame.y();
-        const float dz_map =   new_point_in_map_frame.z() -   old_point_in_map_frame.z();
-        const float dx_fixed = new_point_in_fixed_frame.x() - old_point_in_fixed_frame.x();
-        const float dy_fixed = new_point_in_fixed_frame.y() - old_point_in_fixed_frame.y();
-        const float dz_fixed = new_point_in_fixed_frame.z() - old_point_in_fixed_frame.z();
-        const float dx_base =  new_point_in_base_frame.x() -  old_point_in_base_frame.x();
-        const float dy_base =  new_point_in_base_frame.y() -  old_point_in_base_frame.y();
-        const float dz_base =  new_point_in_base_frame.z() -  old_point_in_base_frame.z();
-        const float dx_sensor = mo.position.x - x_old;
-        const float dy_sensor = mo.position.y - y_old;
-        const float dz_sensor = mo.position.z - z_old;
+        const double dx_map    = mo.position_in_map_frame.x   - mo_old_positions.position_in_map_frame.x;
+        const double dy_map    = mo.position_in_map_frame.y   - mo_old_positions.position_in_map_frame.y;
+        const double dz_map    = mo.position_in_map_frame.z   - mo_old_positions.position_in_map_frame.z;
+        const double dx_fixed  = mo.position_in_fixed_frame.x - mo_old_positions.position_in_fixed_frame.x;
+        const double dy_fixed  = mo.position_in_fixed_frame.y - mo_old_positions.position_in_fixed_frame.y;
+        const double dz_fixed  = mo.position_in_fixed_frame.z - mo_old_positions.position_in_fixed_frame.z;
+        const double dx_base   = mo.position_in_base_frame.x  - mo_old_positions.position_in_base_frame.x;
+        const double dy_base   = mo.position_in_base_frame.y  - mo_old_positions.position_in_base_frame.y;
+        const double dz_base   = mo.position_in_base_frame.z  - mo_old_positions.position_in_base_frame.z;
+        const double dx_sensor = mo.position.x - x_old;
+        const double dy_sensor = mo.position.y - y_old;
+        const double dz_sensor = mo.position.z - z_old;
+        
+        
+//         // Set old position in map_frame
+//         mo_old_positions.position_in_map_frame.x = old_point_in_map_frame.x();
+//         mo_old_positions.position_in_map_frame.y = old_point_in_map_frame.y();
+//         mo_old_positions.position_in_map_frame.z = old_point_in_map_frame.z();
+//         
+//         // Set old position in fixed_frame
+//         mo_old_positions.position_in_fixed_frame.x = old_point_in_fixed_frame.x();
+//         mo_old_positions.position_in_fixed_frame.y = old_point_in_fixed_frame.y();
+//         mo_old_positions.position_in_fixed_frame.z = old_point_in_fixed_frame.z();
+//         
+//         // Set old position in base_frame
+//         mo_old_positions.position_in_base_frame.x = old_point_in_base_frame.x();
+//         mo_old_positions.position_in_base_frame.y = old_point_in_base_frame.y();
+//         mo_old_positions.position_in_base_frame.z = old_point_in_base_frame.z();
+//         
+//         // Set position in map_frame
+//         mo.position_in_map_frame.x = new_point_in_map_frame.x();
+//         mo.position_in_map_frame.y = new_point_in_map_frame.y();
+//         mo.position_in_map_frame.z = new_point_in_map_frame.z();
+//         
+//         // Set position in fixed_frame
+//         mo.position_in_fixed_frame.x = new_point_in_fixed_frame.x();
+//         mo.position_in_fixed_frame.y = new_point_in_fixed_frame.y();
+//         mo.position_in_fixed_frame.z = new_point_in_fixed_frame.z();
+//         
+//         // Set position in base_frame
+//         mo.position_in_base_frame.x = new_point_in_base_frame.x();
+//         mo.position_in_base_frame.y = new_point_in_base_frame.y();
+//         mo.position_in_base_frame.z = new_point_in_base_frame.z();
+//         
+//         // Set closest point in map_frame
+//         mo.closest_point_in_map_frame.x = closest_point_in_map_frame.x();
+//         mo.closest_point_in_map_frame.y = closest_point_in_map_frame.y();
+//         mo.closest_point_in_map_frame.z = closest_point_in_map_frame.z();
+//         
+//         // Set closest point in fixed_frame
+//         mo.closest_point_in_fixed_frame.x = closest_point_in_fixed_frame.x();
+//         mo.closest_point_in_fixed_frame.y = closest_point_in_fixed_frame.y();
+//         mo.closest_point_in_fixed_frame.z = closest_point_in_fixed_frame.z();
+//         
+//         // Set closest point in base_frame
+//         mo.closest_point_in_base_frame.x = closest_point_in_base_frame.x();
+//         mo.closest_point_in_base_frame.y = closest_point_in_base_frame.y();
+//         mo.closest_point_in_base_frame.z = closest_point_in_base_frame.z();
+//         
+//         // Check how object has moved
+//         const float dx_map =   new_point_in_map_frame.x() -   old_point_in_map_frame.x();
+//         const float dy_map =   new_point_in_map_frame.y() -   old_point_in_map_frame.y();
+//         const float dz_map =   new_point_in_map_frame.z() -   old_point_in_map_frame.z();
+//         const float dx_fixed = new_point_in_fixed_frame.x() - old_point_in_fixed_frame.x();
+//         const float dy_fixed = new_point_in_fixed_frame.y() - old_point_in_fixed_frame.y();
+//         const float dz_fixed = new_point_in_fixed_frame.z() - old_point_in_fixed_frame.z();
+//         const float dx_base =  new_point_in_base_frame.x() -  old_point_in_base_frame.x();
+//         const float dy_base =  new_point_in_base_frame.y() -  old_point_in_base_frame.y();
+//         const float dz_base =  new_point_in_base_frame.z() -  old_point_in_base_frame.z();
+//         const float dx_sensor = mo.position.x - x_old;
+//         const float dy_sensor = mo.position.y - y_old;
+//         const float dz_sensor = mo.position.z - z_old;
         
         // And with what velocity
-        const double dt = mo.header.stamp.toSec() - 
-                          bank_stamp[bank_index_put];
+//         const double dt = bank_stamp[bank_index_newest] - bank_stamp[bank_index_put];
+        const double dt = mo.header.stamp.toSec() - bank_stamp[bank_index_put];
+//         ROS_ERROR_STREAM("newest stamp = " << mo.header.stamp.toSec() << std::endl << "oldest stamp = " << bank_stamp[bank_index_put] << std::endl << "dt = " << dt << std::endl);
         mo.velocity.x = dx_sensor / dt;
         mo.velocity.y = dy_sensor / dt;
         mo.velocity.z = dz_sensor / dt;
@@ -1629,13 +1759,8 @@ void Bank::findAndReportMovingObjects()
           mo.confidence = calculateConfidence(mo, 
                                               bank_argument, 
                                               dt, 
-                                              object_seen_width_old,
-                                              transform_old_time_map_frame_success,
-                                              transform_new_time_map_frame_success,
-                                              transform_old_time_fixed_frame_success,
-                                              transform_new_time_fixed_frame_success,
-                                              transform_old_time_base_frame_success,
-                                              transform_new_time_base_frame_success);
+                                              object_seen_width_old);
+          
           // Bound the value to [0,1]
           mo.confidence = (mo.confidence < 0.0  ?  0.0  :  mo.confidence);
           mo.confidence = (mo.confidence < 1.0  ?  mo.confidence  :  1.0);
@@ -1803,8 +1928,8 @@ void Bank::findAndReportMovingObjects()
       // Color of the arrow represents the confidence black=low, white=high
       if (bank_argument.velocity_arrows_use_full_gray_scale && bank_argument.object_threshold_min_confidence < 1)
       {
-        const float adapted_confidence = (mo->confidence - bank_argument.object_threshold_min_confidence) / 
-                                         (1 - bank_argument.object_threshold_min_confidence);
+        const double adapted_confidence = (mo->confidence - bank_argument.object_threshold_min_confidence) / 
+                                          (1 - bank_argument.object_threshold_min_confidence);
         msg_objects_velocity_arrow.color.r = adapted_confidence;
         msg_objects_velocity_arrow.color.g = adapted_confidence;
         msg_objects_velocity_arrow.color.b = adapted_confidence;

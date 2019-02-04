@@ -1,4 +1,6 @@
 #include <ros/ros.h>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
 
 #ifdef LSARRAY
 #include <find_moving_objects/LaserScanArray.h>
@@ -34,8 +36,7 @@ private:
   /* DEFAULT PARAMETER VALUES */
   #include "laserscan_interpreter_default_parameter_values.h"
   
-  /* SUBSCRIBER */
-  ros::Subscriber sub;
+  /* SUBSCRIBE INFO */
   std::string subscribe_topic;
   int subscribe_buffer_size;
   
@@ -50,36 +51,39 @@ private:
   std::vector<Bank *> banks;
   std::vector<BankArgument> bank_arguments;
   
-  /* TF listener */
-  tf::TransformListener * tfListener;
+  /* TF LISTENER, BUFFER AND TARGET FRAME */
+  tf2_ros::Buffer * tf_buffer;
+  tf2_ros::TransformListener * tf_listener;
+  std::vector<std::string> tf_filter_target_frames;
+  
+  /* NODE HANDLES (ROS must be initialized when object is created) */
+  ros::NodeHandle nh;
+  ros::NodeHandle nh_priv;
+  
+  /* STATES OF MESSAGE RECEIVING */
+  typedef enum
+  {
+    WAIT_FOR_FIRST_MESSAGE_HZ,
+    CALCULATE_HZ,
+    INIT_BANKS,
+    FIND_MOVING_OBJECTS
+  } state_t;
+  state_t state;
   
 #ifdef LSARRAY  
-  /* CALLBACK FOR FIRST MESSAGE */
-  void laserScanArrayCallbackFirst(const find_moving_objects::LaserScanArray::ConstPtr & msg);
+  /* MESSAGE FILTER */
+  message_filters::Subscriber<find_moving_objects::LaserScanArray> * tf_subscriber;
+  tf2_ros::MessageFilter<find_moving_objects::LaserScanArray> * tf_filter;
   
-  /* CALLBACK FOR ALL BUT THE FIRST MESSAGE */
+  /* CALLBACK */
   void laserScanArrayCallback(const find_moving_objects::LaserScanArray::ConstPtr & msg);
-  
-  /* CALLBACK FOR WAITING UNTIL THE FIRST MESSAGE WAS RECEIVED - HZ CALCULATION */
-  void waitForFirstMessageCallback(const find_moving_objects::LaserScanArray::ConstPtr & msg);
-  
-  /* CALLBACK FOR HZ CALCULATION */
-  void hzCalculationCallback(const find_moving_objects::LaserScanArray::ConstPtr & msg);
 #else
-  /* LOCAL MESSAGE POINTER */
-  sensor_msgs::LaserScan::ConstPtr msg_old;
-
-  /* CALLBACK FOR FIRST MESSAGE */
-  void laserScanCallbackFirst(const sensor_msgs::LaserScan::ConstPtr & msg);
+  /* MESSAGE FILTER */
+  message_filters::Subscriber<sensor_msgs::LaserScan> * tf_subscriber;
+  tf2_ros::MessageFilter<sensor_msgs::LaserScan> * tf_filter;
   
-  /* CALLBACK FOR ALL BUT THE FIRST MESSAGE */
+  /* CALLBACK */
   void laserScanCallback(const sensor_msgs::LaserScan::ConstPtr & msg);
-  
-  /* CALLBACK FOR WAITING UNTIL THE FIRST MESSAGE WAS RECEIVED - HZ CALCULATION */
-  void waitForFirstMessageCallback(const sensor_msgs::LaserScan::ConstPtr & msg);
-  
-  /* CALLBACK FOR HZ CALCULATION */
-  void hzCalculationCallback(const sensor_msgs::LaserScan::ConstPtr & msg);
 #endif
   
 public:

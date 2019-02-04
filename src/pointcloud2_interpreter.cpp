@@ -36,6 +36,11 @@
 
 /* ROS */
 #include <ros/ros.h>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/message_filter.h>
+#include <message_filters/subscriber.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <sensor_msgs/PointCloud2.h>
 
 #ifdef NODELET
@@ -75,30 +80,17 @@ namespace find_moving_objects
 
 
 /* CONFIDENCE CALCULATION FOR BANK */
-const double a = -10 / 3;
+const double a = -20 / 3;
 double root_1=0.35, root_2=0.65; // optimized for bank coverage of 0.5s, adapted in hz calculation
 double Bank::calculateConfidence(const MovingObject & mo,
                                  const BankArgument & ba,
                                  const double dt,
-                                 const double mo_old_width,
-                                 const bool transform_old_time_map_frame_success,
-                                 const bool transform_new_time_map_frame_success,
-                                 const bool transform_old_time_fixed_frame_success,
-                                 const bool transform_new_time_fixed_frame_success,
-                                 const bool transform_old_time_base_frame_success,
-                                 const bool transform_new_time_base_frame_success)
+                                 const double mo_old_width)
 {
   return ba.ema_alpha * // Using weighting decay decreases the confidence while,
          (ba.base_confidence + // how much we trust the sensor itself,
-          (transform_old_time_map_frame_success &&
-           transform_new_time_map_frame_success &&
-           transform_old_time_fixed_frame_success &&
-           transform_new_time_fixed_frame_success &&
-           transform_old_time_base_frame_success  &&
-           transform_new_time_base_frame_success ? 0.5 : 0.0) + // transform success,
           a*(dt-root_1)*(dt-root_2) + // a well-adapted bank size in relation to the sensor rate and environmental context
-          // (dt should be close to 0.5 seconds),
-          (-5.0 * fabsf(mo.seen_width - mo_old_width))); // and low difference in width between old and new object,
+          (-1.0 * fabsf(mo.seen_width - mo_old_width))); // and low difference in width between old and new object,
           // make us more confident
 }
 
@@ -127,10 +119,9 @@ PointCloud2InterpreterNode::PointCloud2InterpreterNode()
   ros::Time::waitForValid();
 #endif
   
-// #ifndef PC2ARRAY
-//   // Start collecting tf data
-//   bank = new find_moving_objects::Bank;
-// #endif
+  tf_filter = NULL;
+  tf_listener = NULL;
+  tf_buffer = NULL;
   
 #ifdef NODE
   onInit();
@@ -147,14 +138,6 @@ PointCloud2ArrayInterpreterNodelet::~PointCloud2ArrayInterpreterNodelet()
 # ifdef NODE
 PointCloud2ArrayInterpreterNode::~PointCloud2ArrayInterpreterNode()
 # endif
-{
-  int nr_banks = banks.size();
-  for (int i=0; i<nr_banks; ++i)
-  {
-    delete banks[i];
-  }
-  banks.clear();
-}
 #else
 # ifdef NODELET
 PointCloud2InterpreterNodelet::~PointCloud2InterpreterNodelet()
@@ -162,135 +145,22 @@ PointCloud2InterpreterNodelet::~PointCloud2InterpreterNodelet()
 # ifdef NODE
 PointCloud2InterpreterNode::~PointCloud2InterpreterNode()
 # endif
+#endif
 {
-  delete banks[0];
+  int nr_banks = banks.size();
+  for (int i=0; i<nr_banks; ++i)
+  {
+    delete banks[i];
+  }
   banks.clear();
-}
-#endif
 
-
-
-/* CALLBACK FOR FIRST MESSAGE */
-#ifdef PC2ARRAY
-# ifdef NODELET
-void PointCloud2ArrayInterpreterNodelet::pointCloud2ArrayCallbackFirst(const find_moving_objects::PointCloud2Array::ConstPtr & msg)
-# endif
-# ifdef NODE
-void PointCloud2ArrayInterpreterNode::pointCloud2ArrayCallbackFirst(const find_moving_objects::PointCloud2Array::ConstPtr & msg)
-# endif
-#else
-# ifdef NODELET
-void PointCloud2InterpreterNodelet::pointCloud2CallbackFirst(const sensor_msgs::PointCloud2::ConstPtr & msg)
-# endif
-# ifdef NODE
-void PointCloud2InterpreterNode::pointCloud2CallbackFirst(const sensor_msgs::PointCloud2::ConstPtr & msg)
-# endif
-#endif
-{ 
-  // Debug frame to see e.g. if we are dealing with an optical frame
-#ifdef PC2ARRAY
-  if (0 < msg->msgs.size())
-  {
-# ifdef NODELET
-    NODELET_DEBUG_STREAM("PointCloud2 sensor is using frame: " << msg->msgs[0].header.frame_id);
-# endif
-# ifdef NODE
-    ROS_DEBUG_STREAM("PointCloud2 sensor is using frame: " << msg->msgs[0].header.frame_id);
-# endif
-  }
-#else
-# ifdef NODELET
-  NODELET_DEBUG_STREAM("PointCloud2 sensor is using frame: " << msg->header.frame_id);
-# endif
-# ifdef NODE
-  ROS_DEBUG_STREAM("PointCloud2 sensor is using frame: " << msg->header.frame_id);
-# endif
-#endif
-
-#ifdef PC2ARRAY
-  // Create banks
-  const int nr_msgs = msg->msgs.size();
-  if (banks.size() == 0)
-  {
-    // If reaching this point, then this block has not been executed before
-    // If it has, then it will not be executed again, and the modifications to banks and bank_arguments are hence 
-    // maintained valid, assuming that the new message contains the same number of messages in the array
-    bank_arguments.resize(nr_msgs);
-    banks.resize(nr_msgs);
-    for (int i=0; i<nr_msgs; ++i)
-    {
-      // Create bank and start listening to tf data
-      banks[i] = new find_moving_objects::Bank(tfListener);
-      
-      // Copy first bank argument
-      bank_arguments[i] = bank_arguments[0];
-    }
-    
-    // Modify bank arguments
-    for (int i=0; i<nr_msgs; ++i)
-    {
-      const std::string append_str = "_" + std::to_string(i);
-      bank_arguments[i].topic_ema.append(append_str);
-      bank_arguments[i].topic_objects_closest_point_markers.append(append_str);
-      bank_arguments[i].topic_objects_velocity_arrows.append(append_str);
-      bank_arguments[i].topic_objects_delta_position_lines.append(append_str);
-      bank_arguments[i].topic_objects_width_lines.append(append_str);
-      
-      bank_arguments[i].velocity_arrow_ns.append(append_str);
-      bank_arguments[i].delta_position_line_ns.append(append_str);
-      bank_arguments[i].width_line_ns.append(append_str);
-      
-      bank_arguments[i].node_name_suffix.append(append_str);
-    }
-  }
-  
-  for (int i=0; i<nr_msgs; ++i)
-  {
-    // Init banks
-    banks[i]->init(bank_arguments[i], &(msg->msgs[i]), false); // addFirstMessage might not succeed, disregard that
-  }
-  // Now change callback regardless of init outcome
-#else
-  // Create banks
-  banks.resize(1);
-  banks[0] = new find_moving_objects::Bank(tfListener);
-  
-  // Init bank
-  if (banks[0]->init(bank_arguments[0], &(*msg)) != 0)
-  {
-    // If init fails we do not change callback, but use this one again
-    return;
-  }
-#endif
-
-  // Use the other callback from now on
-#ifdef NODELET
-  ros::NodeHandle nh = getNodeHandle();
-#endif
-#ifdef NODE
-  ros::NodeHandle nh;
-#endif
-  sub = nh.subscribe(subscribe_topic,
-                     subscribe_buffer_size,
-#ifdef NODELET
-# ifdef PC2ARRAY
-                     &PointCloud2ArrayInterpreterNodelet::pointCloud2ArrayCallback, 
-# else
-                     &PointCloud2InterpreterNodelet::pointCloud2Callback, 
-# endif
-#endif
-#ifdef NODE
-# ifdef PC2ARRAY
-                     &PointCloud2ArrayInterpreterNode::pointCloud2ArrayCallback, 
-# else
-                     &PointCloud2InterpreterNode::pointCloud2Callback, 
-# endif
-#endif
-                     this);
+  if (tf_filter != NULL)   delete tf_filter;
+  if (tf_buffer != NULL)   delete tf_buffer;
 }
 
 
-/* CALLBACK FOR ALL BUT THE FIRST MESSAGE */
+
+/* CALLBACK */
 #ifdef PC2ARRAY
 # ifdef NODELET
 void PointCloud2ArrayInterpreterNodelet::pointCloud2ArrayCallback(const find_moving_objects::PointCloud2Array::ConstPtr & msg)
@@ -307,177 +177,194 @@ void PointCloud2InterpreterNode::pointCloud2Callback(const sensor_msgs::PointClo
 # endif
 #endif
 {
-#ifdef PC2ARRAY
-  // Consider the msgs of msg in parallel
-// #pragma omp parallel for
-  for (int i=0; i<msg->msgs.size(); ++i)
+  switch (state)
   {
-    // Can message be added to bank?
-    if (banks[i]->addMessage(&(msg->msgs[i]), false) != 0)
+    /* 
+     * MAIN STATE - WHEN ALL IS INITIALIZED
+     */
+    case FIND_MOVING_OBJECTS:
     {
-      // Adding message failed, try the next one
-      continue;
-    }
-
-    // If so, then find and report objects
-    banks[i]->findAndReportMovingObjects();
-  }
-#else
-  // Can message be added to bank?
-  if (banks[0]->addMessage(&(*msg)) != 0) // De-reference ConstPtr object and take the resulting address to get a pointer to
-                                      // a PointCloud2 object
-  {
-    // Adding message failed
-    return;
-  }
-
-  // If so, then find and report objects
-  banks[0]->findAndReportMovingObjects();
-#endif
-}
-
-
-/* CALLBACK FOR WAITING UNTIL THE FIRST MESSAGE WAS RECEIVED - HZ CALCULATION */
 #ifdef PC2ARRAY
-# ifdef NODELET
-void PointCloud2ArrayInterpreterNodelet::waitForFirstMessageCallback(const find_moving_objects::PointCloud2Array::ConstPtr & msg) 
-# endif
-# ifdef NODE
-void PointCloud2ArrayInterpreterNode::waitForFirstMessageCallback(const find_moving_objects::PointCloud2Array::ConstPtr & msg)
-# endif
+      // Consider the msgs of msg in parallel
+//       #pragma omp parallel for
+      for (int i=0; i<msg->msgs.size(); ++i)
+      {
+        // Can message be added to bank?
+        if (banks[i]->addMessage(&(msg->msgs[i]), false) != 0)
+        {
+          // Adding message failed, try the next one
+          continue;
+        }
+
+        // If so, then find and report objects
+        banks[i]->findAndReportMovingObjects();
+      }
 #else
-# ifdef NODELET
-void PointCloud2InterpreterNodelet::waitForFirstMessageCallback(const sensor_msgs::PointCloud2::ConstPtr & msg) 
-# endif
-# ifdef NODE
-void PointCloud2InterpreterNode::waitForFirstMessageCallback(const sensor_msgs::PointCloud2::ConstPtr & msg)
-# endif
+      // Can message be added to bank?
+      if (banks[0]->addMessage(&(*msg)) != 0) // De-reference ConstPtr object and take reference of result to get a 
+                                              // pointer to a PointCloud2 object
+      {
+        // Adding message failed
+        break;
+      }
+
+      // If so, then find and report objects
+      banks[0]->findAndReportMovingObjects();
 #endif
-{
-  // Set start time
-  start_time = ros::Time::now().toSec();
-  
-  // Update subscriber with new callback
+      break;
+    }
+      
+      
+    /* 
+     * BEFORE MAIN STATE CAN BE SET, THIS CASE MUST HAVE BEEN EXECUTED
+     */
+    case INIT_BANKS:
+    {
+      // Debug frame to see e.g. if we are dealing with an optical frame
 #ifdef NODELET
-  ros::NodeHandle nh = getNodeHandle();
+      NODELET_DEBUG_STREAM("PointCloud2Array sensor is using frame: " << msg->header.frame_id);
 #endif
 #ifdef NODE
-  ros::NodeHandle nh;
+      ROS_DEBUG_STREAM("PointCloud2Array sensor is using frame: " << msg->header.frame_id);
 #endif
-  sub = nh.subscribe(subscribe_topic,
-                     subscribe_buffer_size,
-#ifdef PC2ARRAY
-# ifdef NODELET
-                     &PointCloud2ArrayInterpreterNodelet::hzCalculationCallback,
-# endif
-# ifdef NODE
-                     &PointCloud2ArrayInterpreterNode::hzCalculationCallback,
-# endif
-#else
-# ifdef NODELET
-                     &PointCloud2InterpreterNodelet::hzCalculationCallback,
-# endif
-# ifdef NODE
-                     &PointCloud2InterpreterNode::hzCalculationCallback,
-# endif
-#endif
-                     this);
-}
 
-
-/* CALLBACK FOR HZ CALCULATION */
 #ifdef PC2ARRAY
-# ifdef NODELET
-void PointCloud2ArrayInterpreterNodelet::hzCalculationCallback(const find_moving_objects::PointCloud2Array::ConstPtr & msg)
-# endif
-# ifdef NODE
-void PointCloud2ArrayInterpreterNode::hzCalculationCallback(const find_moving_objects::PointCloud2Array::ConstPtr & msg)
-# endif
+      // Create banks
+      const int nr_msgs = msg->msgs.size();
+      if (banks.size() == 0)
+      {
+        // If reaching this point, then this block has not been executed before
+        // If it has, then it will not be executed again, and the modifications to banks and bank_arguments are hence 
+        // maintained valid, assuming that the new message contains the same number of messages in the array
+        bank_arguments.resize(nr_msgs);
+        banks.resize(nr_msgs);
+        for (int i=0; i<nr_msgs; ++i)
+        {
+          // Create bank and start listening to tf data
+          banks[i] = new find_moving_objects::Bank(tf_buffer);
+          
+          // Copy first bank argument
+          bank_arguments[i] = bank_arguments[0];
+        }
+        
+        // Modify bank arguments
+        for (int i=0; i<nr_msgs; ++i)
+        {
+          const std::string append_str = "_" + std::to_string(i);
+          bank_arguments[i].topic_ema.append(append_str);
+          bank_arguments[i].topic_objects_closest_point_markers.append(append_str);
+          bank_arguments[i].topic_objects_velocity_arrows.append(append_str);
+          bank_arguments[i].topic_objects_delta_position_lines.append(append_str);
+          bank_arguments[i].topic_objects_width_lines.append(append_str);
+          
+          bank_arguments[i].velocity_arrow_ns.append(append_str);
+          bank_arguments[i].delta_position_line_ns.append(append_str);
+          bank_arguments[i].width_line_ns.append(append_str);
+          
+          bank_arguments[i].node_name_suffix.append(append_str);
+        }
+      }
+      
+      // Init banks
+      for (int i=0; i<nr_msgs; ++i)
+      {
+        banks[i]->init(bank_arguments[i], &(msg->msgs[i]), false); // addFirstMessage might not succeed, disregard that
+      }
 #else
-# ifdef NODELET
-void PointCloud2InterpreterNodelet::hzCalculationCallback(const sensor_msgs::PointCloud2::ConstPtr & msg)
-# endif
-# ifdef NODE
-void PointCloud2InterpreterNode::hzCalculationCallback(const sensor_msgs::PointCloud2::ConstPtr & msg)
-# endif
-#endif
-{
-  // spin until target is reached
-  received_messages++;
-  const double elapsed_time = ros::Time::now().toSec() - start_time;
+      // Create banks
+      if (banks.size() == 0)
+      {
+        banks.resize(1);
+        banks[0] = new find_moving_objects::Bank(tf_buffer);
+      }
   
-  // Are we done?
-  if (max_time <= elapsed_time ||
-      max_messages <= received_messages)
-  {
-    // Calculate HZ
-    const double hz = received_messages / elapsed_time;
-    
-    // Set nr of messages in bank
-    const double nr_scans = optimize_nr_scans_in_bank * hz;
-// #ifdef PC2ARRAY
-    bank_arguments[0].nr_scans_in_bank = nr_scans - ((long) nr_scans) == 0.0 ? nr_scans + 1 : ceil(nr_scans);
-    
-    // Sanity check
-    if (bank_arguments[0].nr_scans_in_bank < 2)
-    {
-      bank_arguments[0].nr_scans_in_bank = 2;
+      // Init bank
+      if (banks[0]->init(bank_arguments[0], &(*msg)) != 0)
+      {
+        // If init fails we do not change state, but use this one again
+        break;
+      }
+#endif
+      
+      // Change state
+      state = FIND_MOVING_OBJECTS;
+      break;
     }
-// #else
-//     bank_argument.nr_scans_in_bank = nr_scans - ((long) nr_scans) == 0.0 ? nr_scans + 1 : ceil(nr_scans);
-//     
-//     // Sanity check
-//     if (bank_argument.nr_scans_in_bank < 2)
-//     {
-//       bank_argument.nr_scans_in_bank = 2;
-//     }
-// #endif
+      
+      
+    /* 
+     * CALCULATE HZ OF TOPIC AND UPDATE SIZE OF BANK
+     */
+    case CALCULATE_HZ:
+    {
+      // spin until target is reached
+      received_messages++;
+      const double elapsed_time = ros::Time::now().toSec() - start_time;
+      
+      // Are we done?
+      if (max_time <= elapsed_time ||
+          max_messages <= received_messages)
+      {
+        // Calculate HZ
+        const double hz = received_messages / elapsed_time;
+        
+        // Set nr of messages in bank
+        const double nr_scans = optimize_nr_scans_in_bank * hz;
+        bank_arguments[0].nr_scans_in_bank = nr_scans - ((long) nr_scans) == 0.0 ? nr_scans + 1 : ceil(nr_scans);
     
-    root_1 = optimize_nr_scans_in_bank * 0.6;
-    root_2 = optimize_nr_scans_in_bank * 1.4;
+        // Sanity check
+        if (bank_arguments[0].nr_scans_in_bank < 2)
+        {
+          bank_arguments[0].nr_scans_in_bank = 2;
+        }
+
+        // Update confidence roots
+        root_1 = optimize_nr_scans_in_bank * 0.6;
+        root_2 = optimize_nr_scans_in_bank * 1.4;
     
 #ifdef NODELET
-    NODELET_INFO_STREAM("Topic " << subscribe_topic << " has rate " << hz << "Hz" << 
-                        " (based on " << received_messages << " msgs during " << elapsed_time << " seconds)");
-// # ifdef PC2ARRAY
-    NODELET_INFO_STREAM("Optimized bank size is " << bank_arguments[0].nr_scans_in_bank);
-// # else
-//     NODELET_INFO_STREAM("Optimized bank size is " << bank_argument.nr_scans_in_bank);
-// # endif
-    
-    // Update subscriber with new callback
-    ros::NodeHandle nh = getNodeHandle();
-    sub = nh.subscribe(subscribe_topic,
-                       subscribe_buffer_size,
-# ifdef PC2ARRAY
-                       &PointCloud2ArrayInterpreterNodelet::pointCloud2ArrayCallbackFirst,
-# else
-                       &PointCloud2InterpreterNodelet::pointCloud2CallbackFirst,
-# endif
-                       this);
+        NODELET_INFO_STREAM("Topic " << subscribe_topic << " has rate " << hz << "Hz" << 
+                            " (based on " << received_messages << " msgs during " << elapsed_time << " seconds)");
+        NODELET_INFO_STREAM("Optimized bank size is " << bank_arguments[0].nr_scans_in_bank);
 #endif
 #ifdef NODE
-    ROS_INFO_STREAM("Topic " << subscribe_topic << " has rate " << hz << "Hz" << 
-                        " (based on " << received_messages << " msgs during " << elapsed_time << " seconds)");
-// # ifdef PC2ARRAY
-    ROS_INFO_STREAM("Optimized bank size is " << bank_arguments[0].nr_scans_in_bank);
-// # else
-//     ROS_INFO_STREAM("Optimized bank size is " << bank_argument.nr_scans_in_bank);
-// # endif
-    
-    // Update subscriber with new callback
-    ros::NodeHandle nh;
-    sub = nh.subscribe(subscribe_topic,
-                       subscribe_buffer_size,
-# ifdef PC2ARRAY
-                       &PointCloud2ArrayInterpreterNode::pointCloud2ArrayCallbackFirst,
-# else
-                       &PointCloud2InterpreterNode::pointCloud2CallbackFirst,
-# endif
-                       this);
+        ROS_INFO_STREAM("Topic " << subscribe_topic << " has rate " << hz << "Hz" << 
+                            " (based on " << received_messages << " msgs during " << elapsed_time << " seconds)");
+        ROS_INFO_STREAM("Optimized bank size is " << bank_arguments[0].nr_scans_in_bank);
 #endif
+    
+        // Change state since we are done
+        state = INIT_BANKS;
+      }
+      break;
+    }
+      
+      
+    /* 
+     * WHEN CALCULATING HZ OF TOPIC, WAIT FOR A MESSAGE TO ARRIVE AND SAVE THE TIME
+     */
+    case WAIT_FOR_FIRST_MESSAGE_HZ:
+    {
+      // Set start time
+      start_time = ros::Time::now().toSec();
+      
+      // Change state
+      state = CALCULATE_HZ;
+      break;
+    } 
+      
+      
+    /* 
+     * THERE ARE NO MORE STATES - TERMINATE, THIS IS AN ERROR
+     */
+    default:
+    {
+      ROS_ERROR("Message callback is in an unknown state");
+      ROS_BREAK();
+    }
   }
 }
+
 
 
 /* ENTRY POINT FOR NODELET AND INIT FOR NODE */
@@ -489,8 +376,8 @@ void PointCloud2InterpreterNodelet::onInit()
 # endif
 {
   // Node handles
-  ros::NodeHandle nh = getNodeHandle();
-  ros::NodeHandle nh_priv = getPrivateNodeHandle();
+  nh = getNodeHandle();
+  nh_priv = getPrivateNodeHandle();
 #endif
 #ifdef NODE
 # ifdef PC2ARRAY
@@ -500,14 +387,12 @@ void PointCloud2InterpreterNode::onInit()
 # endif
 {
   // Node handles
-  ros::NodeHandle nh;
-  ros::NodeHandle nh_priv("~");
+  nh = ros::NodeHandle();
+  nh_priv = ros::NodeHandle("~");
 #endif
   
   // Init bank_argument using parameters
-// #ifdef PC2ARRAY
   BankArgument bank_argument;
-// #endif
   nh_priv.param("subscribe_topic", subscribe_topic, default_subscribe_topic);
   nh_priv.param("subscribe_buffer_size", subscribe_buffer_size, default_subscribe_buffer_size);
   nh_priv.param("ema_alpha", bank_argument.ema_alpha, default_ema_alpha);
@@ -556,15 +441,7 @@ void PointCloud2InterpreterNode::onInit()
   nh_priv.param("voxel_leaf_size", bank_argument.PC2_voxel_leaf_size, default_voxel_leaf_size);
   nh_priv.param("threshold_z_min", bank_argument.PC2_threshold_z_min, default_threshold_z_min);
   nh_priv.param("threshold_z_max", bank_argument.PC2_threshold_z_max, default_threshold_z_max);
-  
-// #ifdef PC2ARRAY
-  // Add this as the first bank_argument
-  bank_arguments.push_back(bank_argument);
-  
-  // Create TF listener
-  tfListener = new tf::TransformListener;
-// #endif
-  
+ 
   // Z threshold sanity check
   if (bank_argument.PC2_threshold_z_max < bank_argument.PC2_threshold_z_min)
   {
@@ -578,55 +455,70 @@ void PointCloud2InterpreterNode::onInit()
     ROS_BREAK();
   }
   
+  // Add this as the first bank_argument
+  bank_arguments.push_back(bank_argument);
+  
   // Optimize bank size?
   nh_priv.param("optimize_nr_scans_in_bank", optimize_nr_scans_in_bank, default_optimize_nr_scans_in_bank);
   
   // If optimize_nr_scans_in_bank != 0, then yes
   if (optimize_nr_scans_in_bank != 0.0)
   {
-    // Wait for first message to arrive
-    sub = nh.subscribe(subscribe_topic,
-                       subscribe_buffer_size,
-#ifdef NODELET
-# ifdef PC2ARRAY
-                       &PointCloud2ArrayInterpreterNodelet::waitForFirstMessageCallback,
-# else
-                       &PointCloud2InterpreterNodelet::waitForFirstMessageCallback,
-# endif
-#endif
-#ifdef NODE
-# ifdef PC2ARRAY
-                       &PointCloud2ArrayInterpreterNode::waitForFirstMessageCallback,
-# else
-                       &PointCloud2InterpreterNode::waitForFirstMessageCallback,
-# endif
-#endif
-                       this);
+    state = WAIT_FOR_FIRST_MESSAGE_HZ;
   }
   else
   {
-    // Subscribe to the sensor topic using first callback
-    sub = nh.subscribe(subscribe_topic,
-                       subscribe_buffer_size,
+    state = INIT_BANKS;
+  }
+  
+  // Set up target frames for message filter
+  tf_filter_target_frames.push_back(bank_argument.map_frame);
+  if (strcmp(bank_argument.map_frame.c_str(), bank_argument.fixed_frame.c_str()) != 0)
+  {
+    tf_filter_target_frames.push_back(bank_argument.fixed_frame);
+  }
+  if (strcmp(bank_argument.map_frame.c_str(), bank_argument.base_frame.c_str()) != 0 &&
+      strcmp(bank_argument.fixed_frame.c_str(), bank_argument.base_frame.c_str()) != 0)
+  {
+    tf_filter_target_frames.push_back(bank_argument.base_frame);
+  }
+  
+  // Create tf2 buffer, listener, subscriber and filter
+  tf_buffer = new tf2_ros::Buffer;
+  tf_listener = new tf2_ros::TransformListener(*tf_buffer);
+#ifdef PC2ARRAY
+  tf_subscriber = new message_filters::Subscriber<find_moving_objects::PointCloud2Array>();
+  tf_subscriber->subscribe(nh, subscribe_topic, subscribe_buffer_size);
+  tf_filter = new tf2_ros::MessageFilter<find_moving_objects::PointCloud2Array>(*tf_subscriber, *tf_buffer, "", subscribe_buffer_size, 0);
+#else
+  tf_subscriber = new message_filters::Subscriber<sensor_msgs::PointCloud2>();
+  tf_subscriber->subscribe(nh, subscribe_topic, subscribe_buffer_size);
+  tf_filter = new tf2_ros::MessageFilter<sensor_msgs::PointCloud2>(*tf_subscriber, *tf_buffer, "", subscribe_buffer_size, 0);
+#endif
+  tf_filter->setTargetFrames(tf_filter_target_frames);
+  
+  // Register callback in filter
+  tf_filter->registerCallback( boost::bind(
 #ifdef NODELET
 # ifdef PC2ARRAY
-                       &PointCloud2ArrayInterpreterNodelet::pointCloud2ArrayCallbackFirst,
+          &PointCloud2ArrayInterpreterNodelet::pointCloud2ArrayCallback,
 # else
-                       &PointCloud2InterpreterNodelet::pointCloud2CallbackFirst,
+          &PointCloud2InterpreterNodelet::pointCloud2Callback,
 # endif
 #endif
 #ifdef NODE
 # ifdef PC2ARRAY
-                       &PointCloud2ArrayInterpreterNode::pointCloud2ArrayCallbackFirst,
+          &PointCloud2ArrayInterpreterNode::pointCloud2ArrayCallback,
 # else
-                       &PointCloud2InterpreterNode::pointCloud2CallbackFirst,
+          &PointCloud2InterpreterNode::pointCloud2Callback,
 # endif
 #endif
-                       this);
-  }
+          this, _1) );
 }
 
 } // namespace find_moving_objects
+
+
 
 #ifdef NODE
 using namespace find_moving_objects;
@@ -634,19 +526,19 @@ using namespace find_moving_objects;
 /* ENTRY POINT */
 int main (int argc, char ** argv)
 {
-#ifdef PC2ARRAY
+# ifdef PC2ARRAY
   // Init ROS
   ros::init(argc, argv, "pointcloud2array_interpreter", ros::init_options::AnonymousName);
 
   // Create and init node object
-  PointCloud2ArrayInterpreterNode pc2interpreter;
-#else
+  PointCloud2ArrayInterpreterNode pc2_interpreter;
+# else
   // Init ROS
   ros::init(argc, argv, "pointcloud2_interpreter", ros::init_options::AnonymousName);
 
   // Create and init node object
-  PointCloud2InterpreterNode pc2interpreter;
-#endif
+  PointCloud2InterpreterNode pc2_interpreter;
+# endif
   
   // Enter receive loop
   ros::spin();

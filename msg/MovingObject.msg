@@ -29,7 +29,7 @@ string base_frame
 # sensor (calculated based on angle_begin, angle_end,
 # distance_angle_begin and distance_angle_end as 
 # given below using the law of cosine).
-float32 seen_width
+float64 seen_width
 
 # In frame header.frame_id, angles are measured around 
 # the positive Z axis (counterclockwise; Z is pointing up)
@@ -42,24 +42,24 @@ float32 seen_width
 # found in the frame header.frame_id (this is thus 
 # relative to the X-axis of the sensor in a regular frame
 # and relative the Z-axis, but negated, in an optical frame).
-float32 angle_begin
-float32 angle_end
+float64 angle_begin
+float64 angle_end
 
 # The scanned distances to the object's end points as 
 # specified by angle_begin and angle_end.
-float32 distance_at_angle_begin
-float32 distance_at_angle_end
+float64 distance_at_angle_begin
+float64 distance_at_angle_end
 
 # The averaged distance (approximated to be at 
 # (angle_begin+angle_end)/2) from the sensor to the seen
 # object.
-float32 distance
+float64 distance
 
 # Position and velocity of the object.
-geometry_msgs/Vector3 position_in_map_frame
-geometry_msgs/Vector3 position_in_fixed_frame
-geometry_msgs/Vector3 position_in_base_frame
-geometry_msgs/Vector3 position
+geometry_msgs/Point position_in_map_frame
+geometry_msgs/Point position_in_fixed_frame
+geometry_msgs/Point position_in_base_frame
+geometry_msgs/Point position
 geometry_msgs/Vector3 velocity_in_map_frame
 geometry_msgs/Vector3 velocity_in_fixed_frame
 geometry_msgs/Vector3 velocity_in_base_frame
@@ -71,24 +71,24 @@ geometry_msgs/Vector3 velocity_normalized_in_map_frame
 geometry_msgs/Vector3 velocity_normalized_in_fixed_frame
 geometry_msgs/Vector3 velocity_normalized_in_base_frame
 geometry_msgs/Vector3 velocity_normalized
-float32 speed_in_map_frame
-float32 speed_in_fixed_frame
-float32 speed_in_base_frame
-float32 speed
+float64 speed_in_map_frame
+float64 speed_in_fixed_frame
+float64 speed_in_base_frame
+float64 speed
 
 # The point on the object closest to the sensor.
-geometry_msgs/Vector3 closest_point_in_map_frame
-geometry_msgs/Vector3 closest_point_in_fixed_frame
-geometry_msgs/Vector3 closest_point_in_base_frame
-geometry_msgs/Vector3 closest_point
+geometry_msgs/Point closest_point_in_map_frame
+geometry_msgs/Point closest_point_in_fixed_frame
+geometry_msgs/Point closest_point_in_base_frame
+geometry_msgs/Point closest_point
 
 # For convenience, the distance from the sensor to the 
 # closest point on the object and at what angle it is to 
 # be found in relation to the sensor (i.e. 
 # header.frame_id).
-float32 closest_distance
-float32 angle_for_closest_distance
+float64 closest_distance
+float64 angle_for_closest_distance
 
 # A measure on how confident the sending node is about 
 # the specified information.
-float32 confidence
+float64 confidence

@@ -37,8 +37,7 @@
 #ifndef BANK_H
 #define BANK_H
 #include <ros/ros.h>
-#include <tf/tf.h>
-#include <tf/transform_listener.h>
+#include <tf2_ros/transform_listener.h>
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <sensor_msgs/LaserScan.h>
@@ -375,8 +374,8 @@ private:
   /* HANDLE TO THIS NODE */
   ros::NodeHandle * node;
   
-  /* TRANSFORM BUFFER AND LISTENER */
-  tf::TransformListener * tfListener;
+  /* TRANSFORM BUFFER PTR */
+  tf2_ros::Buffer * tf_buffer;
   
   /* PUBLISHERS */
   ros::Publisher pub_ema;
@@ -457,15 +456,15 @@ private:
   
   
 public:
-  /**
-   * Creates an instance of Bank and starts a <code>tf::TransformListener</code>.
-   */
-  Bank();
+//   /**
+//    * Creates an instance of Bank and starts a <code>tf::TransformListener</code>.
+//    */
+//   Bank();
   
   /**
-   * Creates an instance of Bank and uses the given <code>tf::TransformListener</code>.
+   * Creates an instance of Bank and sets its transform listener and transform buffer to the given ones.
    */
-  Bank(tf::TransformListener * listener);
+  Bank(tf2_ros::Buffer * buffer);
   
   /**
    * De-allocates reserved memory for the bank.
@@ -589,13 +588,7 @@ public:
   virtual double calculateConfidence(const find_moving_objects::MovingObject & mo,
                                      const find_moving_objects::BankArgument & ba,
                                      const double delta_time,
-                                     const double mo_old_width,
-                                     const bool transform_old_time_map_frame_success,
-                                     const bool transform_new_time_map_frame_success,
-                                     const bool transform_old_time_fixed_frame_success,
-                                     const bool transform_new_time_fixed_frame_success,
-                                     const bool transform_old_time_base_frame_success,
-                                     const bool transform_new_time_base_frame_success);
+                                     const double mo_old_width);
 };
 
 // template<typename BaseClass, typename T>

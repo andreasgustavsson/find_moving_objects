@@ -10,13 +10,16 @@ project(find_moving_objects)
 find_package(catkin REQUIRED COMPONENTS
   roscpp 
   nodelet
-  tf
-#   topic_tools
+  tf2
+  tf2_ros
+  tf2_geometry_msgs
   message_generation 
   sensor_msgs 
   visualization_msgs 
   geometry_msgs
 )
+#   topic_tools
+
 
 # find_package(OpenMP REQUIRED)
 # if(OPENMP_FOUND)
@@ -130,7 +133,9 @@ catkin_package(
  LIBRARIES find_moving_objects
  CATKIN_DEPENDS roscpp 
                 nodelet
-                tf 
+                tf2
+                tf2_ros
+                tf2_geometry_msgs
                 message_runtime 
                 sensor_msgs 
                 visualization_msgs 
