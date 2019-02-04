@@ -42,6 +42,7 @@ private:
   
   /* HZ CALCULATION */
   double optimize_nr_scans_in_bank;
+  double max_confidence_for_dt_match;
   int received_messages;
   const int max_messages = 100;
   double start_time;

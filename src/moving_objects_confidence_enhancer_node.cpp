@@ -529,6 +529,9 @@ void * moaHandlerBody(void * arg)
             
             // Add to array of markers
             msg_objects_velocity_arrows.markers.push_back(msg_objects_velocity_arrow);
+            
+            // Update namespace of velocity arrow
+            msg_objects_velocity_arrows.markers[a].ns.append(msg_sender->origin_node_name);
           }
           
           // Publish the msg

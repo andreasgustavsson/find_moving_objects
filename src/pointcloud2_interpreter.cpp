@@ -80,17 +80,18 @@ namespace find_moving_objects
 
 
 /* CONFIDENCE CALCULATION FOR BANK */
-const double a = -20 / 3;
+double a_factor = -10 / 3;
 double root_1=0.35, root_2=0.65; // optimized for bank coverage of 0.5s, adapted in hz calculation
+double width_factor = 0.0;
 double Bank::calculateConfidence(const MovingObject & mo,
                                  const BankArgument & ba,
                                  const double dt,
                                  const double mo_old_width)
 {
   return ba.ema_alpha * // Using weighting decay decreases the confidence while,
-         (ba.base_confidence + // how much we trust the sensor itself,
-          a*(dt-root_1)*(dt-root_2) + // a well-adapted bank size in relation to the sensor rate and environmental context
-          (-1.0 * fabsf(mo.seen_width - mo_old_width))); // and low difference in width between old and new object,
+         (ba.base_confidence // how much we trust the sensor itself,
+          + a_factor * (dt-root_1) * (dt-root_2) // a well-adapted bank size in relation to the sensor rate and environmental context
+          - width_factor * fabs(mo.seen_width - mo_old_width)); // and low difference in width between old and new object,
           // make us more confident
 }
 
@@ -318,9 +319,10 @@ void PointCloud2InterpreterNode::pointCloud2Callback(const sensor_msgs::PointClo
           bank_arguments[0].nr_scans_in_bank = 2;
         }
 
-        // Update confidence roots
+        // Update confidence roots and amplitude factor
         root_1 = optimize_nr_scans_in_bank * 0.6;
         root_2 = optimize_nr_scans_in_bank * 1.4;
+        a_factor = 4 * max_confidence_for_dt_match / (2*root_1*root_2 - root_1*root_1 - root_2*root_2);
     
 #ifdef NODELET
         NODELET_INFO_STREAM("Topic " << subscribe_topic << " has rate " << hz << "Hz" << 
@@ -460,6 +462,7 @@ void PointCloud2InterpreterNode::onInit()
   
   // Optimize bank size?
   nh_priv.param("optimize_nr_scans_in_bank", optimize_nr_scans_in_bank, default_optimize_nr_scans_in_bank);
+  nh_priv.param("max_confidence_for_dt_match", max_confidence_for_dt_match, default_max_confidence_for_dt_match);
   
   // If optimize_nr_scans_in_bank != 0, then yes
   if (optimize_nr_scans_in_bank != 0.0)
@@ -470,6 +473,9 @@ void PointCloud2InterpreterNode::onInit()
   {
     state = INIT_BANKS;
   }
+  
+  // Delta width confidence factor
+  nh_priv.param("delta_width_confidence_decrease_factor", width_factor, default_delta_width_confidence_decrease_factor);
   
   // Set up target frames for message filter
   tf_filter_target_frames.push_back(bank_argument.map_frame);

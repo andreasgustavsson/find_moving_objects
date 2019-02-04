@@ -8,6 +8,8 @@
   <arg name="base_frame"                                         default="base_link"/>
   <arg name="nr_scans_in_bank"                                   default="0"/>
   <arg name="optimize_nr_scans_in_bank"                          default="0.5"/>
+  <arg name="max_confidence_for_dt_match"                        default="0.5"/>
+  <arg name="delta_width_confidence_decrease_factor"             default="0.5"/>
   <arg name="bank_view_angle"                                    default="3.141592654"/>
   <arg name="nr_points_per_scan_in_bank"                         default="360"/>
   <arg name="publish_objects"                                    default="true"/>
@@ -43,7 +45,7 @@
   <arg name="object_threshold_max_delta_width_in_points"         default="15"/>
   <arg name="object_threshold_bank_tracking_max_delta_distance"  default="0.4"/>
   <arg name="object_threshold_min_confidence"                    default="0.7"/>
-  <arg name="base_confidence"                                    default="0.3"/>
+  <arg name="base_confidence"                                    default="0.5"/>
   
   
   
@@ -63,6 +65,9 @@
 
     <param name="nr_scans_in_bank"            type="int"    value="$(arg nr_scans_in_bank)"/>
     <param name="optimize_nr_scans_in_bank"   type="double" value="$(arg optimize_nr_scans_in_bank)"/>
+    <param name="max_confidence_for_dt_match" type="double" value="$(arg max_confidence_for_dt_match)"/>
+    <param name="delta_width_confidence_decrease_factor"    type="double" 
+           value="$(arg delta_width_confidence_decrease_factor)"/>
     <param name="bank_view_angle"             type="double" value="$(arg bank_view_angle)"/>
     <param name="nr_points_per_scan_in_bank"  type="int"    value="$(arg nr_points_per_scan_in_bank)"/>
 

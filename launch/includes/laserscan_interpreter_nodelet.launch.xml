@@ -10,6 +10,8 @@
   <arg name="base_frame"                                         default="base_link"/>
   <arg name="nr_scans_in_bank"                                   default="0"/>
   <arg name="optimize_nr_scans_in_bank"                          default="0.5"/>
+  <arg name="max_confidence_for_dt_match"                        default="0.5"/>
+  <arg name="delta_width_confidence_decrease_factor"             default="0.5"/>
   <arg name="publish_objects"                                    default="true"/>
   <arg name="publish_ema"                                        default="true"/>
   <arg name="publish_objects_closest_points_markers"             default="true"/>
@@ -37,7 +39,7 @@
   <arg name="object_threshold_max_delta_width_in_points"         default="15"/>
   <arg name="object_threshold_bank_tracking_max_delta_distance"  default="0.4"/>
   <arg name="object_threshold_min_confidence"                    default="0.7"/>
-  <arg name="base_confidence"                                    default="0.3"/>
+  <arg name="base_confidence"                                    default="0.5"/>
 
 
   <node if="$(arg create_manager)"
@@ -62,6 +64,9 @@
 
     <param name="nr_scans_in_bank"            type="int"    value="$(arg nr_scans_in_bank)"/>
     <param name="optimize_nr_scans_in_bank"   type="double" value="$(arg optimize_nr_scans_in_bank)"/>
+    <param name="max_confidence_for_dt_match" type="double" value="$(arg max_confidence_for_dt_match)"/>
+    <param name="delta_width_confidence_decrease_factor"    type="double" 
+           value="$(arg delta_width_confidence_decrease_factor)"/>
 
     <param name="publish_objects"                                       type="bool"
                 value="$(arg publish_objects)"/>
