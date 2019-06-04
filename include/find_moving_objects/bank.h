@@ -514,6 +514,8 @@ public:
    * it should not be called again (doing so would compromise the stored data)!
    * @param bank_argument An instance of <code>BankArgument</code>, specifying the behavior of the bank.
    * @param msg Pointer to the first received message to be added to the bank.
+   * @param discard_message_if_no_points_added Discard \p msg if none of the points in its cloud could be transformed 
+   *                                           into a point within the field of view specified in \p bank_argument.
    * @return 0 on success, -1 if this function must be called again.
    */
   virtual long init(BankArgument bank_argument, const sensor_msgs::PointCloud2 * msg, 
@@ -551,6 +553,8 @@ public:
    * Add a <code>sensor_msgs::PointCloud2</code> message to the bank (replace the oldest scan message).
    * 
    * @param msg Pointer to the received message to be added to the bank.
+   * @param discard_message_if_no_points_added Discard \p msg if none of the points in its cloud could be transformed 
+   *                                           into a point within the field of view specified in \p bank_argument.
    * @return 0 on success, -1 if adding this message failed.
    */
   virtual long addMessage(const sensor_msgs::PointCloud2 * msg, 
@@ -571,18 +575,6 @@ public:
    * @param ba An instance of BankArgument with specified details.
    * @param delta_time The difference in time between the oldest and newest scans in the bank.
    * @param mo_old_width The old width of the object.
-   * @param transform_old_time_map_frame_success
-   *        Whether oldest position and velocity could be transformed to the map frame.
-   * @param transform_new_time_map_frame_success
-   *        Whether current position and velocity could be transformed to the map frame.
-   * @param transform_old_time_fixed_frame_success
-   *        Whether oldest position and velocity could be transformed to the fixed frame.
-   * @param transform_new_time_fixed_frame_success
-   *        Whether current position and velocity could be transformed to the fixed frame.
-   * @param transform_old_time_base_frame_success
-   *        Whether oldest position and velocity could be transformed to the base frame.
-   * @param transform_new_time_base_frame_success
-   *        Whether current position and velocity could be transformed to the base frame.
    * @return The user-defined confidence value.
    */
   virtual double calculateConfidence(const find_moving_objects::MovingObject & mo,

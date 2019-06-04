@@ -89,7 +89,7 @@ double Bank::calculateConfidence(const MovingObject & mo,
                                  const double dt,
                                  const double mo_old_width)
 {
-  return ba.ema_alpha * // Using weighting decay decreases the confidence while,
+  return /*ba.ema_alpha **/ // Using weighting decay decreases the confidence while,
          (ba.base_confidence // how much we trust the sensor itself,
           + a_factor * (dt-root_1) * (dt-root_2) // a well-adapted bank size in relation to the sensor rate and environmental context
           - width_factor * fabs(mo.seen_width - mo_old_width)); // and low difference in width between old and new object,

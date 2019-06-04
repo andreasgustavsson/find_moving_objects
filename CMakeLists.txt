@@ -190,6 +190,7 @@ add_executable(moving_objects_confidence_enhancer_node src/moving_objects_confid
 add_executable(example_frame_broadcaster_node src/example_frame_broadcaster_node.cpp)
 add_executable(example_d435_voxel_echoer_node src/example_d435_voxel_echoer_node.cpp)
 add_executable(example_rplidar_echoer_node src/example_rplidar_echoer_node.cpp)
+add_executable(moving_objects_echoer_node src/moving_objects_echoer_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -219,6 +220,7 @@ add_dependencies(PointCloud2InterpreterNodelet find_moving_objects)
 add_dependencies(pointcloud2array_interpreter_node find_moving_objects ${catkin_EXPORTED_TARGETS})
 add_dependencies(PointCloud2ArrayInterpreterNodelet find_moving_objects ${catkin_EXPORTED_TARGETS})
 add_dependencies(moving_objects_confidence_enhancer_node ${PROJECT_NAME}_generate_messages)
+add_dependencies(moving_objects_echoer_node ${PROJECT_NAME}_generate_messages)
 # add_dependencies(moving_objects_confidence_enhancer_node option)
 # add_dependencies(example_frame_broadcaster_node option)
 # add_dependencies(example_d435_voxel_echoer_node)
@@ -311,6 +313,12 @@ PointCloud2ArrayInterpreterNodelet
 
 target_link_libraries(
 moving_objects_confidence_enhancer_node
+  ${catkin_LIBRARIES}
+#   option
+)
+
+target_link_libraries(
+moving_objects_echoer_node
   ${catkin_LIBRARIES}
 #   option
 )
