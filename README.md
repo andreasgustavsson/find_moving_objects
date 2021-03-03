@@ -3,6 +3,8 @@
 A ROS library that can be used to find moving objects. It derives their positions and velocities,
 based on a 2D LaserScan or a 3D PointCloud2 data stream.
 
+You find more information about the package here: http://wiki.ros.org/find_moving_objects
+
 The file src/find_moving_objects/bank.h declares a class called BankArgument. An object of this 
 class is taken as input by the main class, Bank, also declared in this file. BankArgument mainly 
 consists of variables that control the behavior of the Bank object. Please refer to 
